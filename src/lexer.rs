@@ -48,13 +48,13 @@ impl<'a> Lexer<'a> {
 		if let Some((num_split, nextchar)) = self.text[numstart..]
 			.chars()
 			.enumerate()
-			.find(|(_, x)| !x.is_numeric())
+			.find(|(_, x)| !x.is_digit(10))
 		{
 			if nextchar == '.' {
 				if let Some((float_end, _)) = self.text[numstart + num_split + 1..]
 					.chars()
 					.enumerate()
-					.find(|(_, x)| !x.is_numeric())
+					.find(|(_, x)| !x.is_digit(10))
 				{
 					if float_end == 0 {
 						panic!("Invalid Literal!");
@@ -76,7 +76,7 @@ impl<'a> Lexer<'a> {
 					})
 				}
 			} else {
-				self.index += num_split;
+				self.index = numstart + num_split;
 				Some(Lexeme {
 					index: numstart,
 					value: LexemeType::Integer(
