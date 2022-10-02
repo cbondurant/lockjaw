@@ -1,4 +1,6 @@
+#![allow(dead_code)]
 mod lexer;
+mod parser;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -21,8 +23,21 @@ fn main() {
 		match readline {
 			Ok(line) => {
 				rl.add_history_entry(line.as_str());
-				for lexeme in lexer::Lexer::new(&line) {
-					println!("{:?}", lexeme);
+				let lexemes = lexer::Lexer::new(&line).collect();
+				match parser::Lockjaw::parse(lexemes) {
+					Ok(lj) => println!("{:?}", lj),
+					Err(parser_err) => {
+						println!("{parser_err:?}");
+						println!("{line}");
+						match parser_err {
+							parser::LockjawParseError::InvalidOperator { index } => {
+								println!("{}^", " ".to_string().repeat(index))
+							}
+							parser::LockjawParseError::InvalidLiteral { index } => {
+								println!("{}^", " ".to_string().repeat(index))
+							}
+						}
+					}
 				}
 			}
 			Err(ReadlineError::Interrupted) => {

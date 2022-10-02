@@ -1,5 +1,5 @@
-#[derive(Debug)]
-pub enum Lexeme {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LexemeType {
 	RightParen,
 	LeftParen,
 	SingleQuote,
@@ -10,6 +10,22 @@ pub enum Lexeme {
 	Asterisk,
 	Integer(i64),
 	Float(f64),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Lexeme {
+	pub index: usize,
+	pub value: LexemeType,
+}
+
+impl Lexeme {
+	pub fn value(&self) -> LexemeType {
+		self.value
+	}
+
+	pub fn index(&self) -> usize {
+		self.index
+	}
 }
 
 pub struct Lexer<'a> {
@@ -34,7 +50,6 @@ impl<'a> Lexer<'a> {
 			.enumerate()
 			.find(|(_, x)| !x.is_numeric())
 		{
-			println!("{}", nextchar == '.');
 			if nextchar == '.' {
 				if let Some((float_end, _)) = self.text[numstart + num_split + 1..]
 					.chars()
@@ -45,23 +60,35 @@ impl<'a> Lexer<'a> {
 						panic!("Invalid Literal!");
 					}
 					self.index += num_split + float_end;
-					Some(Lexeme::Float(
-						self.text[numstart..numstart + num_split + float_end]
-							.parse()
-							.unwrap(),
-					))
+					Some(Lexeme {
+						index: numstart,
+						value: LexemeType::Float(
+							self.text[numstart..numstart + num_split + float_end]
+								.parse()
+								.unwrap(),
+						),
+					})
 				} else {
 					self.index = self.text.len();
-					Some(Lexeme::Float(self.text[numstart..].parse().unwrap()))
+					Some(Lexeme {
+						index: numstart,
+						value: LexemeType::Float(self.text[numstart..].parse().unwrap()),
+					})
 				}
 			} else {
-				Some(Lexeme::Integer(
-					self.text[numstart..numstart + num_split].parse().unwrap(),
-				))
+				Some(Lexeme {
+					index: numstart,
+					value: LexemeType::Integer(
+						self.text[numstart..numstart + num_split].parse().unwrap(),
+					),
+				})
 			}
 		} else {
 			self.index = self.text.len();
-			Some(Lexeme::Integer(self.text[numstart..].parse().unwrap()))
+			Some(Lexeme {
+				index: numstart,
+				value: LexemeType::Integer(self.text[numstart..].parse().unwrap()),
+			})
 		}
 	}
 }
@@ -71,15 +98,40 @@ impl<'a> Iterator for Lexer<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		while let Some(char) = self.advance_char() {
+			let index = self.index - 1;
 			let resp = match char {
-				'(' => Some(Lexeme::LeftParen),
-				')' => Some(Lexeme::RightParen),
-				'\'' => Some(Lexeme::SingleQuote),
-				'"' => Some(Lexeme::DoubleQuote),
-				'+' => Some(Lexeme::Plus),
-				'-' => Some(Lexeme::Dash),
-				'*' => Some(Lexeme::Asterisk),
-				'/' => Some(Lexeme::ForwardSlash),
+				'(' => Some(Lexeme {
+					index,
+					value: LexemeType::LeftParen,
+				}),
+				')' => Some(Lexeme {
+					index,
+					value: LexemeType::RightParen,
+				}),
+				'\'' => Some(Lexeme {
+					index,
+					value: LexemeType::SingleQuote,
+				}),
+				'"' => Some(Lexeme {
+					index,
+					value: LexemeType::DoubleQuote,
+				}),
+				'+' => Some(Lexeme {
+					index,
+					value: LexemeType::Plus,
+				}),
+				'-' => Some(Lexeme {
+					index,
+					value: LexemeType::Dash,
+				}),
+				'*' => Some(Lexeme {
+					index,
+					value: LexemeType::Asterisk,
+				}),
+				'/' => Some(Lexeme {
+					index,
+					value: LexemeType::ForwardSlash,
+				}),
 				'0'..='9' => self.lex_number(),
 				' ' | '\t' => continue,
 				_ => panic!("Invalid Syntax!"),
