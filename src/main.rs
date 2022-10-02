@@ -20,9 +20,11 @@ fn main() {
 
 	loop {
 		let readline = rl.readline("lj> ");
-
 		match readline {
 			Ok(line) => {
+				if line.is_empty() {
+					continue;
+				};
 				rl.add_history_entry(line.as_str());
 				let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&line).collect();
 				match parser::Expression::parse_root(lexemes.as_slice()) {

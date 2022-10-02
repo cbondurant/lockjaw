@@ -1,5 +1,4 @@
 use crate::lexer::{Lexeme, LexemeType};
-use std::fmt;
 
 #[derive(Debug)]
 pub enum LockjawParseError {
