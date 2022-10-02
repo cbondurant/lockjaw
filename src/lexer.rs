@@ -76,6 +76,7 @@ impl<'a> Lexer<'a> {
 					})
 				}
 			} else {
+				self.index += num_split;
 				Some(Lexeme {
 					index: numstart,
 					value: LexemeType::Integer(
