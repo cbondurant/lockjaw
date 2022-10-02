@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+mod evaluator;
 mod lexer;
 mod parser;
 
@@ -23,9 +24,13 @@ fn main() {
 		match readline {
 			Ok(line) => {
 				rl.add_history_entry(line.as_str());
-				let lexemes = lexer::Lexer::new(&line).collect();
-				match parser::Lockjaw::parse(lexemes) {
-					Ok(lj) => println!("{:?}", lj),
+				let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&line).collect();
+				match parser::Expression::parse_root(lexemes.as_slice()) {
+					Ok(lj) => {
+						println!("{:#?}", lexemes);
+						println!("{:#?}", lj);
+						println!("{:#?}", evaluator::Evaluator::evaluate(&lj));
+					}
 					Err(parser_err) => {
 						println!("{parser_err:?}");
 						println!("{line}");

@@ -10,6 +10,7 @@ pub enum LexemeType {
 	Asterisk,
 	Integer(i64),
 	Float(f64),
+	Err,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -135,7 +136,10 @@ impl<'a> Iterator for Lexer<'a> {
 				}),
 				'0'..='9' => self.lex_number(),
 				' ' | '\t' => continue,
-				_ => panic!("Invalid Syntax!"),
+				_ => Some(Lexeme {
+					index,
+					value: LexemeType::Err,
+				}),
 			};
 			return resp;
 		}

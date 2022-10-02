@@ -1,4 +1,5 @@
 use crate::lexer::{Lexeme, LexemeType};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum LockjawParseError {
@@ -46,18 +47,22 @@ pub enum NumberType {
 
 #[derive(Debug)]
 pub enum Expression {
-	Number(NumberType),
-	SExpression(Operator, Vec<Expression>),
+	Atom(NumberType),
+	SExpression {
+		op: Operator,
+		expressions: Vec<Expression>,
+	},
 }
 
 impl Expression {
 	pub fn lexeme_len(&self) -> usize {
 		match self {
 			// Open paren, Operator, <expr list> Close Paren.
-			Self::SExpression(_, exprlist) => {
-				3 + exprlist.iter().map(Expression::lexeme_len).sum::<usize>()
-			}
-			Self::Number(_) => 1,
+			Self::SExpression {
+				op: _,
+				expressions: exprlist,
+			} => 3 + exprlist.iter().map(Expression::lexeme_len).sum::<usize>(),
+			Self::Atom(_) => 1,
 		}
 	}
 
@@ -69,36 +74,30 @@ impl Expression {
 			while current_lexeme < lexemes.len()
 				&& LexemeType::RightParen != lexemes[current_lexeme].value()
 			{
-				println!("{:?}", &lexemes[current_lexeme..]);
 				let expression = Expression::parse(&lexemes[current_lexeme..])?;
 				current_lexeme += expression.lexeme_len();
 				exprlist.push(expression);
 			}
-			Ok(Expression::SExpression(op, exprlist))
+			Ok(Self::SExpression {
+				op,
+				expressions: exprlist,
+			})
 		} else {
 			match lexemes[0] {
 				Lexeme {
 					index: _,
 					value: LexemeType::Integer(value),
-				} => Ok(Expression::Number(NumberType::Int(value))),
+				} => Ok(Expression::Atom(NumberType::Int(value))),
 				Lexeme {
 					index: _,
 					value: LexemeType::Float(value),
-				} => Ok(Expression::Number(NumberType::Float(value))),
+				} => Ok(Expression::Atom(NumberType::Float(value))),
 				Lexeme { index, value: _ } => Err(LockjawParseError::InvalidLiteral { index }),
 			}
 		}
 	}
-}
 
-#[derive(Debug)]
-pub struct Lockjaw {
-	op: Operator,
-	expressions: Vec<Expression>,
-}
-
-impl Lockjaw {
-	pub fn parse(lexemes: Vec<Lexeme>) -> Result<Self, LockjawParseError> {
+	pub fn parse_root(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
 		let op = Operator::parse(lexemes[0])?;
 		let mut expressions = Vec::new();
 		let mut lexemes_consumed = 1;
@@ -108,6 +107,6 @@ impl Lockjaw {
 			expressions.push(expression);
 		}
 
-		Ok(Lockjaw { op, expressions })
+		Ok(Self::SExpression { op, expressions })
 	}
 }
