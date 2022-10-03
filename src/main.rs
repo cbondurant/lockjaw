@@ -29,7 +29,6 @@ fn main() {
 				let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&line).collect();
 				match parser::Expression::parse_root(lexemes.as_slice()) {
 					Ok(lj) => {
-						println!("{:#?}", lexemes);
 						println!("{:#?}", lj);
 						println!("{:#?}", evaluator::Evaluator::evaluate(lj));
 					}

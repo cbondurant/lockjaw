@@ -1,9 +1,9 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum LexemeType {
+pub enum LexemeType<'a> {
 	RightParen,
 	LeftParen,
-	RightBracket,
-	LeftBracket,
+	RightCBracket,
+	LeftCBracket,
 	SingleQuote,
 	DoubleQuote,
 	Plus,
@@ -12,16 +12,17 @@ pub enum LexemeType {
 	Asterisk,
 	Integer(i64),
 	Float(f64),
+	RawSymbol(&'a str),
 	Err,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Lexeme {
+pub struct Lexeme<'a> {
 	pub index: usize,
-	pub value: LexemeType,
+	pub value: LexemeType<'a>,
 }
 
-impl Lexeme {
+impl<'a> Lexeme<'a> {
 	pub fn value(&self) -> LexemeType {
 		self.value
 	}
@@ -46,18 +47,18 @@ impl<'a> Lexer<'a> {
 		self.text[self.index - 1..].chars().next()
 	}
 
-	fn lex_number(&mut self) -> LexemeType {
+	fn lex_number(&mut self) -> LexemeType<'a> {
 		let numstart = self.index - 1;
 		if let Some((num_split, nextchar)) = self.text[numstart..]
 			.chars()
 			.enumerate()
-			.find(|(_, x)| !x.is_digit(10))
+			.find(|(_, x)| !x.is_ascii_digit())
 		{
 			if nextchar == '.' {
 				if let Some((float_end, _)) = self.text[numstart + num_split + 1..]
 					.chars()
 					.enumerate()
-					.find(|(_, x)| !x.is_digit(10))
+					.find(|(_, x)| !x.is_ascii_digit())
 				{
 					if float_end == 0 {
 						panic!("Invalid Literal!");
@@ -81,10 +82,24 @@ impl<'a> Lexer<'a> {
 			LexemeType::Integer(self.text[numstart..].parse().unwrap())
 		}
 	}
+
+	fn lex_raw_symbol(&mut self) -> LexemeType<'a> {
+		let symbol_start = self.index - 1;
+		LexemeType::RawSymbol(
+			&self.text[symbol_start
+				..if let Some(i) = self.text[self.index - 1..].find(char::is_whitespace) {
+					self.index = symbol_start + i;
+					symbol_start + i
+				} else {
+					self.index = self.text.len();
+					self.text.len()
+				}],
+		)
+	}
 }
 
 impl<'a> Iterator for Lexer<'a> {
-	type Item = Lexeme;
+	type Item = Lexeme<'a>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		while let Some(char) = self.advance_char() {
@@ -100,11 +115,14 @@ impl<'a> Iterator for Lexer<'a> {
 					'-' => LexemeType::Dash,
 					'*' => LexemeType::Asterisk,
 					'/' => LexemeType::ForwardSlash,
+					'{' => LexemeType::LeftCBracket,
+					'}' => LexemeType::RightCBracket,
 					'0'..='9' => self.lex_number(),
 					' ' | '\t' => continue,
-					_ => LexemeType::Err,
+					_ => self.lex_raw_symbol(),
 				},
 			});
+			println!("{:#?}", resp);
 			return resp;
 		}
 		None

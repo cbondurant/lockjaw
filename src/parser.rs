@@ -20,6 +20,10 @@ pub enum Symbol {
 	Minus,
 	Multiply,
 	Divide,
+	Quote,
+	Car,
+	Cdr,
+	Join,
 }
 
 impl Symbol {
@@ -48,6 +52,7 @@ pub enum AtomType<'a> {
 pub enum Expression<'a> {
 	Atom(AtomType<'a>),
 	SExpression(VecDeque<Expression<'a>>),
+	QExpression(VecDeque<Expression<'a>>),
 }
 
 impl<'a> Expression<'a> {
@@ -57,12 +62,15 @@ impl<'a> Expression<'a> {
 			Self::SExpression(exprlist) => {
 				2 + exprlist.iter().map(Expression::lexeme_len).sum::<usize>()
 			}
+			Self::QExpression(exprlist) => {
+				2 + exprlist.iter().map(Expression::lexeme_len).sum::<usize>()
+			}
 			Self::Atom(_) => 1,
 		}
 	}
 
 	pub fn parse(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
-		if LexemeType::LeftParen == lexemes[0].value() {
+		if LexemeType::LeftParen == lexemes[0].value {
 			let mut exprlist = VecDeque::new();
 			let mut current_lexeme = 1;
 			while current_lexeme < lexemes.len()
@@ -73,6 +81,17 @@ impl<'a> Expression<'a> {
 				exprlist.push_back(expression);
 			}
 			Ok(Self::SExpression(exprlist))
+		} else if LexemeType::LeftCBracket == lexemes[0].value {
+			let mut exprlist = VecDeque::new();
+			let mut current_lexeme = 1;
+			while current_lexeme < lexemes.len()
+				&& LexemeType::RightCBracket != lexemes[current_lexeme].value()
+			{
+				let expression = Expression::parse(&lexemes[current_lexeme..])?;
+				current_lexeme += expression.lexeme_len();
+				exprlist.push_back(expression);
+			}
+			Ok(Self::QExpression(exprlist))
 		} else {
 			Ok(Expression::Atom(match lexemes[0].value {
 				LexemeType::Integer(value) => AtomType::Int(value),
@@ -82,6 +101,17 @@ impl<'a> Expression<'a> {
 					LexemeType::Dash => Symbol::Minus,
 					LexemeType::Asterisk => Symbol::Multiply,
 					LexemeType::ForwardSlash => Symbol::Divide,
+					LexemeType::RawSymbol(str) => match str.to_ascii_lowercase().as_str() {
+						"quote" => Symbol::Quote,
+						"car" => Symbol::Car,
+						"cdr" => Symbol::Cdr,
+						"join" => Symbol::Join,
+						_ => {
+							return Err(LockjawParseError::InvalidOperator {
+								index: lexemes[0].index,
+							})
+						}
+					},
 					_ => {
 						return Err(LockjawParseError::InvalidLiteral {
 							index: lexemes[0].index,

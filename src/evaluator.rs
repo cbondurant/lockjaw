@@ -77,56 +77,137 @@ impl<'a> Div for AtomType<'a> {
 pub struct Evaluator {}
 
 impl<'a> Evaluator {
+	fn resolve_sexpression(mut expressions: VecDeque<Expression<'a>>) -> Expression<'a> {
+		use Expression::*;
+
+		// Must check for Quote before any evaluation is done
+
+		if let Atom(AtomType::Symbol(Symbol::Quote)) = expressions[0] {
+			expressions.pop_front();
+			return QExpression(expressions);
+		}
+
+		let mut evals = VecDeque::new();
+		for expression in expressions {
+			evals.push_back(Self::evaluate(expression));
+		}
+		if evals.is_empty() {
+			return SExpression(VecDeque::new());
+		}
+		if evals.len() == 1 {
+			return evals.pop_front().unwrap();
+		}
+
+		if evals.len() == 2 {
+			match evals[0] {
+				Atom(AtomType::Symbol(Symbol::Minus)) => match evals[1] {
+					Atom(AtomType::Int(a)) => Atom(AtomType::Int(-a)),
+					Atom(AtomType::Float(a)) => Atom(AtomType::Float(-a)),
+					SExpression(_) => Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+						"Cannot negate non-number!",
+					))),
+					QExpression(_) => Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+						"Cannot negate non-number!",
+					))),
+					Atom(a) => Atom(a),
+				},
+				Atom(AtomType::Symbol(Symbol::Car)) => {
+					evals.pop_front();
+					if let Some(QExpression(mut elements)) = evals.pop_front() {
+						let mut car = VecDeque::new();
+						if let Some(val) = elements.pop_front() {
+							car.push_back(val);
+						}
+						QExpression(car)
+					} else {
+						Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+							"Car requires a list as its argument!",
+						)))
+					}
+				}
+				Atom(AtomType::Symbol(Symbol::Cdr)) => {
+					evals.pop_front();
+					if let Some(QExpression(mut elements)) = evals.pop_front() {
+						if elements.pop_front().is_some() {
+							QExpression(elements)
+						} else {
+							Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+								"Unable to get cdr of empty expr",
+							)))
+						}
+					} else {
+						Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+							"Cdr requires a list as its argument!",
+						)))
+					}
+				}
+				SExpression(_) => todo!(),
+				QExpression(_) => todo!(),
+				Atom(a) => Atom(a),
+			};
+		}
+
+		if let Atom(AtomType::Symbol(Symbol::Join)) = evals[0] {
+			if evals.len() != 3 {
+				return Atom(AtomType::Err(LockjawRuntimeError::InvalidArgumentCount(
+					"Join takes exactly 2 arguments",
+				)));
+			}
+			evals.pop_front(); // Remove join, we already have it.
+			return if let Some(QExpression(mut a)) = evals.pop_front() {
+				if let Some(QExpression(mut b)) = evals.pop_front() {
+					a.append(&mut b);
+					QExpression(a)
+				} else {
+					Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+						"Join requires two Quote expressions",
+					)))
+				}
+			} else {
+				Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+					"Join requires two Quote expressions",
+				)))
+			};
+		}
+
+		if let Some(Atom(AtomType::Symbol(s))) = evals.pop_front() {
+			if let Some(Atom(mut accumulator)) = evals.pop_front() {
+				for expr in evals {
+					if let Atom(arg) = expr {
+						println!("Expression: {:?}", s);
+						match s {
+							Symbol::Plus => accumulator = accumulator + arg,
+							Symbol::Minus => accumulator = accumulator - arg,
+							Symbol::Multiply => accumulator = accumulator * arg,
+							Symbol::Divide => accumulator = accumulator / arg,
+							_ => {
+								return Atom(AtomType::Err(
+									LockjawRuntimeError::InvalidArgumentCount(
+										"Undefined Eval Error.",
+									),
+								))
+							}
+						}
+					}
+				}
+				Atom(accumulator)
+			} else {
+				Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+					"Invalid argument",
+				)))
+			}
+		} else {
+			Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+				"Invalid Operation",
+			)))
+		}
+	}
+
 	pub fn evaluate(expression: Expression<'a>) -> Expression<'a> {
 		match expression {
 			Expression::Atom(a) => Expression::Atom(a),
-			Expression::SExpression(expressions) => {
-				let mut evals = VecDeque::new();
-				for expression in expressions {
-					evals.push_back(Self::evaluate(expression));
-				}
-				if evals.len() == 0 {
-					return Expression::SExpression(VecDeque::new());
-				}
-				if evals.len() == 1 {
-					return evals.pop_front().unwrap();
-				}
-
-				if evals.len() == 2 {
-					if let Expression::Atom(AtomType::Symbol(Symbol::Minus)) = evals[0] {
-						if let Expression::Atom(AtomType::Int(a)) = evals[1] {
-							return Expression::Atom(AtomType::Int(-a));
-						}
-						if let Expression::Atom(AtomType::Float(a)) = evals[1] {
-							return Expression::Atom(AtomType::Float(-a));
-						}
-					}
-				}
-
-				if let Some(Expression::Atom(AtomType::Symbol(s))) = evals.pop_front() {
-					if let Some(Expression::Atom(mut accumulator)) = evals.pop_front() {
-						for expr in evals {
-							if let Expression::Atom(arg) = expr {
-								match s {
-									Symbol::Plus => accumulator = accumulator + arg,
-									Symbol::Minus => accumulator = accumulator - arg,
-									Symbol::Multiply => accumulator = accumulator * arg,
-									Symbol::Divide => accumulator = accumulator / arg,
-								}
-							}
-						}
-						Expression::Atom(accumulator)
-					} else {
-						Expression::Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
-							"Invalid argument",
-						)))
-					}
-				} else {
-					Expression::Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
-						"Invalid Operator",
-					)))
-				}
-			}
+			Expression::QExpression(q) => Expression::QExpression(q),
+			Expression::SExpression(expressions) => Self::resolve_sexpression(expressions),
 		}
 	}
 }
