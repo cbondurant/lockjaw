@@ -31,7 +31,7 @@ fn main() {
 					Ok(lj) => {
 						println!("{:#?}", lexemes);
 						println!("{:#?}", lj);
-						println!("{:#?}", evaluator::Evaluator::evaluate(&lj));
+						println!("{:#?}", evaluator::Evaluator::evaluate(lj));
 					}
 					Err(parser_err) => {
 						println!("{parser_err:?}");
