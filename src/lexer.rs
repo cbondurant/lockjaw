@@ -2,6 +2,8 @@
 pub enum LexemeType {
 	RightParen,
 	LeftParen,
+	RightBracket,
+	LeftBracket,
 	SingleQuote,
 	DoubleQuote,
 	Plus,
@@ -44,7 +46,7 @@ impl<'a> Lexer<'a> {
 		self.text[self.index - 1..].chars().next()
 	}
 
-	fn lex_number(&mut self) -> Option<Lexeme> {
+	fn lex_number(&mut self) -> LexemeType {
 		let numstart = self.index - 1;
 		if let Some((num_split, nextchar)) = self.text[numstart..]
 			.chars()
@@ -61,36 +63,22 @@ impl<'a> Lexer<'a> {
 						panic!("Invalid Literal!");
 					}
 					self.index += num_split + float_end;
-					Some(Lexeme {
-						index: numstart,
-						value: LexemeType::Float(
-							self.text[numstart..numstart + num_split + float_end]
-								.parse()
-								.unwrap(),
-						),
-					})
+					LexemeType::Float(
+						self.text[numstart..numstart + num_split + float_end]
+							.parse()
+							.unwrap(),
+					)
 				} else {
 					self.index = self.text.len();
-					Some(Lexeme {
-						index: numstart,
-						value: LexemeType::Float(self.text[numstart..].parse().unwrap()),
-					})
+					LexemeType::Float(self.text[numstart..].parse().unwrap())
 				}
 			} else {
 				self.index = numstart + num_split;
-				Some(Lexeme {
-					index: numstart,
-					value: LexemeType::Integer(
-						self.text[numstart..numstart + num_split].parse().unwrap(),
-					),
-				})
+				LexemeType::Integer(self.text[numstart..numstart + num_split].parse().unwrap())
 			}
 		} else {
 			self.index = self.text.len();
-			Some(Lexeme {
-				index: numstart,
-				value: LexemeType::Integer(self.text[numstart..].parse().unwrap()),
-			})
+			LexemeType::Integer(self.text[numstart..].parse().unwrap())
 		}
 	}
 }
@@ -101,46 +89,22 @@ impl<'a> Iterator for Lexer<'a> {
 	fn next(&mut self) -> Option<Self::Item> {
 		while let Some(char) = self.advance_char() {
 			let index = self.index - 1;
-			let resp = match char {
-				'(' => Some(Lexeme {
-					index,
-					value: LexemeType::LeftParen,
-				}),
-				')' => Some(Lexeme {
-					index,
-					value: LexemeType::RightParen,
-				}),
-				'\'' => Some(Lexeme {
-					index,
-					value: LexemeType::SingleQuote,
-				}),
-				'"' => Some(Lexeme {
-					index,
-					value: LexemeType::DoubleQuote,
-				}),
-				'+' => Some(Lexeme {
-					index,
-					value: LexemeType::Plus,
-				}),
-				'-' => Some(Lexeme {
-					index,
-					value: LexemeType::Dash,
-				}),
-				'*' => Some(Lexeme {
-					index,
-					value: LexemeType::Asterisk,
-				}),
-				'/' => Some(Lexeme {
-					index,
-					value: LexemeType::ForwardSlash,
-				}),
-				'0'..='9' => self.lex_number(),
-				' ' | '\t' => continue,
-				_ => Some(Lexeme {
-					index,
-					value: LexemeType::Err,
-				}),
-			};
+			let resp = Some(Lexeme {
+				index,
+				value: match char {
+					'(' => LexemeType::LeftParen,
+					')' => LexemeType::RightParen,
+					'\'' => LexemeType::SingleQuote,
+					'"' => LexemeType::DoubleQuote,
+					'+' => LexemeType::Plus,
+					'-' => LexemeType::Dash,
+					'*' => LexemeType::Asterisk,
+					'/' => LexemeType::ForwardSlash,
+					'0'..='9' => self.lex_number(),
+					' ' | '\t' => continue,
+					_ => LexemeType::Err,
+				},
+			});
 			return resp;
 		}
 		None
