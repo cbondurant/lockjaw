@@ -87,9 +87,15 @@ impl<'a> Evaluator {
 			return QExpression(expressions);
 		}
 
-		if let Atom(AtomType::Symbol(Symbol::Eval)) = expressions[0] {
-			expressions.pop_front();
-			return if let Some(QExpression(exprlist)) = expressions.pop_front() {
+		let mut evals = VecDeque::new();
+
+		for expression in expressions {
+			evals.push_back(Self::evaluate(expression));
+		}
+
+		if let Atom(AtomType::Symbol(Symbol::Eval)) = evals[0] {
+			evals.pop_front();
+			return if let Some(QExpression(exprlist)) = evals.pop_front() {
 				Self::resolve_sexpression(exprlist)
 			} else {
 				Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
@@ -98,19 +104,16 @@ impl<'a> Evaluator {
 			};
 		}
 
-		let mut evals = VecDeque::new();
-		for expression in expressions {
-			evals.push_back(Self::evaluate(expression));
-		}
 		if evals.is_empty() {
 			return SExpression(VecDeque::new());
 		}
+
 		if evals.len() == 1 {
 			return evals.pop_front().unwrap();
 		}
 
 		if evals.len() == 2 {
-			match evals[0] {
+			return match evals[0] {
 				Atom(AtomType::Symbol(Symbol::Minus)) => match evals[1] {
 					Atom(AtomType::Int(a)) => Atom(AtomType::Int(-a)),
 					Atom(AtomType::Float(a)) => Atom(AtomType::Float(-a)),
@@ -122,9 +125,11 @@ impl<'a> Evaluator {
 					))),
 					Atom(a) => Atom(a),
 				},
+
 				Atom(AtomType::Symbol(Symbol::Car)) => {
+					println!("{:?}", evals);
 					evals.pop_front();
-					if let Some(QExpression(mut elements)) = evals.pop_front() {
+					return if let Some(QExpression(mut elements)) = evals.pop_front() {
 						let mut car = VecDeque::new();
 						if let Some(val) = elements.pop_front() {
 							car.push_back(val);
@@ -134,7 +139,7 @@ impl<'a> Evaluator {
 						Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
 							"Car requires a list as its argument!",
 						)))
-					}
+					};
 				}
 				Atom(AtomType::Symbol(Symbol::Cdr)) => {
 					evals.pop_front();

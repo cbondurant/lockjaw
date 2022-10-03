@@ -83,11 +83,20 @@ impl<'a> Lexer<'a> {
 		}
 	}
 
+	fn is_valid_raw_symbol(c: char) -> bool {
+		if c.is_alphanumeric() {
+			return true;
+		};
+		return false;
+	}
+
 	fn lex_raw_symbol(&mut self) -> LexemeType<'a> {
 		let symbol_start = self.index - 1;
 		LexemeType::RawSymbol(
 			&self.text[symbol_start
-				..if let Some(i) = self.text[self.index - 1..].find(char::is_whitespace) {
+				..if let Some(i) =
+					self.text[self.index - 1..].find(|x| !Self::is_valid_raw_symbol(x))
+				{
 					self.index = symbol_start + i;
 					symbol_start + i
 				} else {
