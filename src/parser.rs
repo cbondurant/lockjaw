@@ -24,6 +24,7 @@ pub enum Symbol {
 	Car,
 	Cdr,
 	Join,
+	Eval,
 }
 
 impl Symbol {
@@ -106,6 +107,7 @@ impl<'a> Expression<'a> {
 						"car" => Symbol::Car,
 						"cdr" => Symbol::Cdr,
 						"join" => Symbol::Join,
+						"eval" => Symbol::Eval,
 						_ => {
 							return Err(LockjawParseError::InvalidOperator {
 								index: lexemes[0].index,

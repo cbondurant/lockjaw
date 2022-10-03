@@ -87,6 +87,17 @@ impl<'a> Evaluator {
 			return QExpression(expressions);
 		}
 
+		if let Atom(AtomType::Symbol(Symbol::Eval)) = expressions[0] {
+			expressions.pop_front();
+			return if let Some(QExpression(exprlist)) = expressions.pop_front() {
+				Self::resolve_sexpression(exprlist)
+			} else {
+				Atom(AtomType::Err(LockjawRuntimeError::InvalidArguments(
+					"Can only eval qexprs!",
+				)))
+			};
+		}
+
 		let mut evals = VecDeque::new();
 		for expression in expressions {
 			evals.push_back(Self::evaluate(expression));
@@ -174,7 +185,6 @@ impl<'a> Evaluator {
 			if let Some(Atom(mut accumulator)) = evals.pop_front() {
 				for expr in evals {
 					if let Atom(arg) = expr {
-						println!("Expression: {:?}", s);
 						match s {
 							Symbol::Plus => accumulator = accumulator + arg,
 							Symbol::Minus => accumulator = accumulator - arg,
