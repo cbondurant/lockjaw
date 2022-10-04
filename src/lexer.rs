@@ -6,14 +6,9 @@ pub enum LexemeType<'a> {
 	LeftCBracket,
 	SingleQuote,
 	DoubleQuote,
-	Plus,
-	Dash,
-	ForwardSlash,
-	Asterisk,
 	Integer(i64),
 	Float(f64),
 	RawSymbol(&'a str),
-	Err,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -22,15 +17,7 @@ pub struct Lexeme<'a> {
 	pub value: LexemeType<'a>,
 }
 
-impl<'a> Lexeme<'a> {
-	pub fn value(&self) -> LexemeType {
-		self.value
-	}
-
-	pub fn index(&self) -> usize {
-		self.index
-	}
-}
+impl<'a> Lexeme<'a> {}
 
 pub struct Lexer<'a> {
 	text: &'a str,
@@ -84,10 +71,13 @@ impl<'a> Lexer<'a> {
 	}
 
 	fn is_valid_raw_symbol(c: char) -> bool {
-		if c.is_alphanumeric() {
-			return true;
-		};
-		return false;
+		match c {
+			'a'..='z' => true,
+			'A'..='Z' => true,
+			// '0'..='9' => true, // Might turn on eventually, not yet.
+			'/' | '_' | '+' | '-' | '*' | '\\' | '=' | '>' | '<' | '!' | '&' => true,
+			_ => false,
+		}
 	}
 
 	fn lex_raw_symbol(&mut self) -> LexemeType<'a> {
@@ -120,10 +110,6 @@ impl<'a> Iterator for Lexer<'a> {
 					')' => LexemeType::RightParen,
 					'\'' => LexemeType::SingleQuote,
 					'"' => LexemeType::DoubleQuote,
-					'+' => LexemeType::Plus,
-					'-' => LexemeType::Dash,
-					'*' => LexemeType::Asterisk,
-					'/' => LexemeType::ForwardSlash,
 					'{' => LexemeType::LeftCBracket,
 					'}' => LexemeType::RightCBracket,
 					'0'..='9' => self.lex_number(),
@@ -131,7 +117,6 @@ impl<'a> Iterator for Lexer<'a> {
 					_ => self.lex_raw_symbol(),
 				},
 			});
-			println!("{:#?}", resp);
 			return resp;
 		}
 		None

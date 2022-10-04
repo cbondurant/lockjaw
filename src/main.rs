@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+//#![allow(dead_code)]
 mod evaluator;
 mod lexer;
 mod parser;
@@ -18,27 +18,23 @@ fn main() {
 		}
 	};
 
+	let environment = evaluator::Evaluator::new();
+
 	loop {
 		let readline = rl.readline("lj> ");
 		match readline {
 			Ok(line) => {
-				if line.is_empty() {
-					continue;
-				};
 				rl.add_history_entry(line.as_str());
 				let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&line).collect();
 				match parser::Expression::parse_root(lexemes.as_slice()) {
 					Ok(lj) => {
 						println!("{:#?}", lj);
-						println!("{:#?}", evaluator::Evaluator::evaluate(lj));
+						println!("{:?}", environment.evaluate(lj));
 					}
 					Err(parser_err) => {
 						println!("{parser_err:?}");
 						println!("{line}");
 						match parser_err {
-							parser::LockjawParseError::InvalidOperator { index } => {
-								println!("{}^", " ".to_string().repeat(index))
-							}
 							parser::LockjawParseError::InvalidLiteral { index } => {
 								println!("{}^", " ".to_string().repeat(index))
 							}

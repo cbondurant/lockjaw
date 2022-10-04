@@ -1,57 +1,32 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Display};
 
 use crate::lexer::{Lexeme, LexemeType};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LockjawParseError {
-	InvalidOperator { index: usize },
 	InvalidLiteral { index: usize },
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum LockjawRuntimeError<'a> {
-	InvalidArguments(&'a str),
-	InvalidArgumentCount(&'a str),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Atom<'a> {
+	Float(f64),
+	Int(i64),
+	Symbol(&'a str),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Symbol {
-	Plus,
-	Minus,
-	Multiply,
-	Divide,
-	Quote,
-	Car,
-	Cdr,
-	Join,
-	Eval,
-}
-
-impl Symbol {
-	pub fn parse(lexeme: Lexeme) -> Result<Self, LockjawParseError> {
-		match lexeme.value {
-			LexemeType::Plus => Ok(Self::Plus),
-			LexemeType::Dash => Ok(Self::Minus),
-			LexemeType::Asterisk => Ok(Self::Multiply),
-			LexemeType::ForwardSlash => Ok(Self::Divide),
-			_ => Err(LockjawParseError::InvalidOperator {
-				index: lexeme.index,
-			}),
+impl<'a> Display for Atom<'a> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Atom::Float(v) => write!(f, "Float: {}", v),
+			Atom::Int(v) => write!(f, "Int: {}", v),
+			Atom::Symbol(v) => write!(f, "Symbol: {}", v),
 		}
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum AtomType<'a> {
-	Float(f64),
-	Int(i64),
-	Symbol(Symbol),
-	Err(LockjawRuntimeError<'a>),
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression<'a> {
-	Atom(AtomType<'a>),
+	Atom(Atom<'a>),
 	SExpression(VecDeque<Expression<'a>>),
 	QExpression(VecDeque<Expression<'a>>),
 }
@@ -70,61 +45,46 @@ impl<'a> Expression<'a> {
 		}
 	}
 
-	pub fn parse(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
-		if LexemeType::LeftParen == lexemes[0].value {
-			let mut exprlist = VecDeque::new();
-			let mut current_lexeme = 1;
-			while current_lexeme < lexemes.len()
-				&& LexemeType::RightParen != lexemes[current_lexeme].value()
-			{
-				let expression = Expression::parse(&lexemes[current_lexeme..])?;
-				current_lexeme += expression.lexeme_len();
-				exprlist.push_back(expression);
+	pub fn parse(lexemes: &[Lexeme<'a>]) -> Result<Self, LockjawParseError> {
+		match lexemes[0].value {
+			LexemeType::LeftParen => {
+				let mut exprlist = VecDeque::new();
+				let mut current_lexeme = 1;
+				while current_lexeme < lexemes.len()
+					&& LexemeType::RightParen != lexemes[current_lexeme].value
+				{
+					let expression = Expression::parse(&lexemes[current_lexeme..])?;
+					current_lexeme += expression.lexeme_len();
+					exprlist.push_back(expression);
+				}
+				Ok(Self::SExpression(exprlist))
 			}
-			Ok(Self::SExpression(exprlist))
-		} else if LexemeType::LeftCBracket == lexemes[0].value {
-			let mut exprlist = VecDeque::new();
-			let mut current_lexeme = 1;
-			while current_lexeme < lexemes.len()
-				&& LexemeType::RightCBracket != lexemes[current_lexeme].value()
-			{
-				let expression = Expression::parse(&lexemes[current_lexeme..])?;
-				current_lexeme += expression.lexeme_len();
-				exprlist.push_back(expression);
+			LexemeType::LeftCBracket => {
+				let mut exprlist = VecDeque::new();
+				let mut current_lexeme = 1;
+				while current_lexeme < lexemes.len()
+					&& LexemeType::RightCBracket != lexemes[current_lexeme].value
+				{
+					let expression = Expression::parse(&lexemes[current_lexeme..])?;
+					current_lexeme += expression.lexeme_len();
+					exprlist.push_back(expression);
+				}
+				Ok(Self::QExpression(exprlist))
 			}
-			Ok(Self::QExpression(exprlist))
-		} else {
-			Ok(Expression::Atom(match lexemes[0].value {
-				LexemeType::Integer(value) => AtomType::Int(value),
-				LexemeType::Float(value) => AtomType::Float(value),
-				non_lit => AtomType::Symbol(match non_lit {
-					LexemeType::Plus => Symbol::Plus,
-					LexemeType::Dash => Symbol::Minus,
-					LexemeType::Asterisk => Symbol::Multiply,
-					LexemeType::ForwardSlash => Symbol::Divide,
-					LexemeType::RawSymbol(str) => match str.to_ascii_lowercase().as_str() {
-						"quote" => Symbol::Quote,
-						"car" => Symbol::Car,
-						"cdr" => Symbol::Cdr,
-						"join" => Symbol::Join,
-						"eval" => Symbol::Eval,
-						_ => {
-							return Err(LockjawParseError::InvalidOperator {
-								index: lexemes[0].index,
-							})
-						}
-					},
-					_ => {
-						return Err(LockjawParseError::InvalidLiteral {
-							index: lexemes[0].index,
-						})
-					}
-				}),
-			}))
+			term => Ok(Expression::Atom(match term {
+				LexemeType::Integer(value) => Atom::Int(value),
+				LexemeType::Float(value) => Atom::Float(value),
+				LexemeType::RawSymbol(symb) => Atom::Symbol(symb),
+				_ => {
+					return Err(LockjawParseError::InvalidLiteral {
+						index: lexemes[0].index,
+					})
+				}
+			})),
 		}
 	}
 
-	pub fn parse_root(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
+	pub fn parse_root(lexemes: &[Lexeme<'a>]) -> Result<Self, LockjawParseError> {
 		let mut expressions = VecDeque::new();
 		let mut lexemes_consumed = 0;
 		while lexemes_consumed < lexemes.len() {
