@@ -1,3 +1,5 @@
+use crate::parser::LockjawParseError;
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LexemeType<'a> {
 	RightParen,
@@ -22,11 +24,16 @@ impl<'a> Lexeme<'a> {}
 pub struct Lexer<'a> {
 	text: &'a str,
 	index: usize,
+	has_errored: bool,
 }
 
 impl<'a> Lexer<'a> {
 	pub fn new(text: &'a str) -> Self {
-		Lexer { text, index: 0 }
+		Lexer {
+			text,
+			index: 0,
+			has_errored: false,
+		}
 	}
 
 	fn advance_char(&mut self) -> Option<char> {
@@ -98,12 +105,16 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-	type Item = Lexeme<'a>;
+	type Item = Result<Lexeme<'a>, LockjawParseError>;
 
 	fn next(&mut self) -> Option<Self::Item> {
+		if self.has_errored {
+			return None;
+		}
+
 		while let Some(char) = self.advance_char() {
 			let index = self.index - 1;
-			let resp = Some(Lexeme {
+			let resp = Some(Ok(Lexeme {
 				index,
 				value: match char {
 					'(' => LexemeType::LeftParen,
@@ -114,9 +125,10 @@ impl<'a> Iterator for Lexer<'a> {
 					'}' => LexemeType::RightCBracket,
 					'0'..='9' => self.lex_number(),
 					' ' | '\t' => continue,
-					_ => self.lex_raw_symbol(),
+					x if Self::is_valid_raw_symbol(x) => self.lex_raw_symbol(),
+					_ => return Some(Err(LockjawParseError::InvalidLiteral { index })),
 				},
-			});
+			}));
 			return resp;
 		}
 		None
