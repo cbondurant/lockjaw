@@ -7,14 +7,14 @@ pub enum LockjawParseError {
 	InvalidLiteral { index: usize },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Atom<'a> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Atom {
 	Float(f64),
 	Int(i64),
-	Symbol(&'a str),
+	Symbol(String),
 }
 
-impl<'a> Display for Atom<'a> {
+impl<'a> Display for Atom {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Atom::Float(v) => write!(f, "Float: {}", v),
@@ -25,13 +25,13 @@ impl<'a> Display for Atom<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expression<'a> {
-	Atom(Atom<'a>),
-	SExpression(VecDeque<Expression<'a>>),
-	QExpression(VecDeque<Expression<'a>>),
+pub enum Expression {
+	Atom(Atom),
+	SExpression(VecDeque<Expression>),
+	QExpression(VecDeque<Expression>),
 }
 
-impl<'a> Expression<'a> {
+impl Expression {
 	pub fn lexeme_len(&self) -> usize {
 		match self {
 			// Open paren, Operator, <expr list> Close Paren.
@@ -45,7 +45,7 @@ impl<'a> Expression<'a> {
 		}
 	}
 
-	pub fn parse(lexemes: &[Lexeme<'a>]) -> Result<Self, LockjawParseError> {
+	pub fn parse(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
 		match lexemes[0].value {
 			LexemeType::LeftParen => {
 				let mut exprlist = VecDeque::new();
@@ -74,7 +74,7 @@ impl<'a> Expression<'a> {
 			term => Ok(Expression::Atom(match term {
 				LexemeType::Integer(value) => Atom::Int(value),
 				LexemeType::Float(value) => Atom::Float(value),
-				LexemeType::RawSymbol(symb) => Atom::Symbol(symb),
+				LexemeType::RawSymbol(symb) => Atom::Symbol(symb.to_string()),
 				_ => {
 					return Err(LockjawParseError::InvalidLiteral {
 						index: lexemes[0].index,
@@ -84,7 +84,7 @@ impl<'a> Expression<'a> {
 		}
 	}
 
-	pub fn parse_root(lexemes: &[Lexeme<'a>]) -> Result<Self, LockjawParseError> {
+	pub fn parse_root(lexemes: &[Lexeme]) -> Result<Self, LockjawParseError> {
 		let mut expressions = VecDeque::new();
 		let mut lexemes_consumed = 0;
 		while lexemes_consumed < lexemes.len() {
