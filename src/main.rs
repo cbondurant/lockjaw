@@ -65,6 +65,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
+	use std::collections::VecDeque;
+
 	use crate::evaluator;
 	use crate::lexer;
 	use crate::parser;
@@ -79,6 +81,23 @@ mod tests {
 			.unwrap();
 		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
+		if let Expression::Atom(Atom::Int(x)) = result {
+			assert_eq!(x, 7);
+		}
+	}
+
+	#[test]
+	fn plus_adds_variables() {
+		let mut environment = evaluator::Evaluator::new();
+		let commands = ["def {x} 3", "+ x 4"];
+		let mut result: Expression = Expression::SExpression(VecDeque::new());
+		for command in commands {
+			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
+				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
+				.unwrap();
+			let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+			result = environment.evaluate(parse).unwrap();
+		}
 		if let Expression::Atom(Atom::Int(x)) = result {
 			assert_eq!(x, 7);
 		}
@@ -225,5 +244,22 @@ mod tests {
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Int(6)));
 		assert!(m);
+	}
+
+	#[test]
+	fn def_defines() {
+		let mut environment = evaluator::Evaluator::new();
+		let commands = ["def {x} 3", "x"];
+		let mut result: Expression = Expression::SExpression(VecDeque::new());
+		for command in commands {
+			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
+				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
+				.unwrap();
+			let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+			result = environment.evaluate(parse).unwrap();
+		}
+		if let Expression::Atom(Atom::Int(x)) = result {
+			assert_eq!(x, 3);
+		}
 	}
 }
