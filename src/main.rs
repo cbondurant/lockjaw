@@ -18,7 +18,7 @@ fn main() {
 		}
 	};
 
-	let environment = evaluator::Evaluator::new();
+	let mut environment = evaluator::Evaluator::new();
 
 	loop {
 		let readline = rl.readline("lj> ");
@@ -72,7 +72,7 @@ mod tests {
 
 	#[test]
 	fn plus_adds() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "+ 3 4";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -86,7 +86,7 @@ mod tests {
 
 	#[test]
 	fn minus_subtracts() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "- 3 1 1 1 ";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -100,7 +100,7 @@ mod tests {
 
 	#[test]
 	fn minus_negates() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "- 1";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -114,7 +114,7 @@ mod tests {
 
 	#[test]
 	fn math_operations_upcast_to_float() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "+ 1 2.4";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -124,7 +124,7 @@ mod tests {
 		let m = matches!(result, Expression::Atom(Atom::Float(_)));
 		assert!(m);
 
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "- 1 2.4";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -134,7 +134,7 @@ mod tests {
 		let m = matches!(result, Expression::Atom(Atom::Float(_)));
 		assert!(m);
 
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "* 1 2.4";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -144,7 +144,7 @@ mod tests {
 		let m = matches!(result, Expression::Atom(Atom::Float(_)));
 		assert!(m);
 
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "/ 1 2";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -157,7 +157,7 @@ mod tests {
 
 	#[test]
 	fn quote_handles_valid_expressions() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "quote 1 2 4 2 + - * \\ / 34 dsfgsd 345 &";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -170,7 +170,7 @@ mod tests {
 
 	#[test]
 	fn curly_brackets_quote() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "eval {+ 1 2 3}";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -183,20 +183,21 @@ mod tests {
 
 	#[test]
 	fn car_gets_front_element_of_qexpr() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "car {+ 1 2 3}";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
 		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Symbol("+")));
-		assert!(m);
+		if let Expression::Atom(Atom::Symbol(sym)) = result {
+			assert_eq!(sym, "+");
+		}
 	}
 
 	#[test]
 	fn cdr_gets_tail_of_qexpr() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "cdr {+ 1 }";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
@@ -215,7 +216,7 @@ mod tests {
 
 	#[test]
 	fn join_combines_qexprs() {
-		let environment = evaluator::Evaluator::new();
+		let mut environment = evaluator::Evaluator::new();
 		let command = "eval (join {+} {1 2 3})";
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
