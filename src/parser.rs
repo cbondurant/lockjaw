@@ -1,6 +1,9 @@
 use std::{collections::VecDeque, fmt::Display};
 
-use crate::lexer::{Lexeme, LexemeType};
+use crate::{
+	evaluator::LockjawRuntimeError,
+	lexer::{Lexeme, LexemeType},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LockjawParseError {
@@ -14,7 +17,20 @@ pub enum Atom {
 	Symbol(String),
 }
 
-impl<'a> Display for Atom {
+impl Atom {
+	pub fn get_as_symbol(self) -> Result<String, LockjawRuntimeError> {
+		if let Atom::Symbol(symb) = self {
+			Ok(symb)
+		} else {
+			Err(LockjawRuntimeError::InvalidArguments(format!(
+				"Expected number, got {}",
+				self
+			)))
+		}
+	}
+}
+
+impl Display for Atom {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Atom::Float(v) => write!(f, "Float: {}", v),
@@ -31,7 +47,48 @@ pub enum Expression {
 	QExpression(VecDeque<Expression>),
 }
 
+impl Display for Expression {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Expression::Atom(v) => write!(f, "{}", v),
+			Expression::SExpression(v) => {
+				write!(f, "( ")?;
+				for expr in v {
+					write!(f, "{} ", expr)?;
+				}
+				write!(f, ")")
+			}
+			Expression::QExpression(v) => {
+				write!(f, "{{ ")?;
+				for expr in v {
+					write!(f, "{} ", expr)?;
+				}
+				write!(f, "}}")
+			}
+		}
+	}
+}
+
 impl Expression {
+	pub fn get_from_q_expression(self) -> Result<VecDeque<Expression>, LockjawRuntimeError> {
+		match self {
+			Expression::QExpression(val) => Ok(val),
+			invalid => Err(LockjawRuntimeError::InvalidArguments(format!(
+				"Expected QExpression, got {}",
+				invalid
+			))),
+		}
+	}
+	pub fn get_atom(self) -> Result<Atom, LockjawRuntimeError> {
+		match self {
+			Expression::Atom(val) => Ok(val),
+			invalid => Err(LockjawRuntimeError::InvalidArguments(format!(
+				"Expected Atom, got {}",
+				invalid
+			))),
+		}
+	}
+
 	pub fn lexeme_len(&self) -> usize {
 		match self {
 			// Open paren, Operator, <expr list> Close Paren.

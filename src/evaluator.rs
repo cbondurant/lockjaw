@@ -19,7 +19,7 @@ pub struct Evaluator {
 	env: HashMap<String, EnvVar>,
 }
 
-impl<'a, 'b> Evaluator {
+impl<'a> Evaluator {
 	fn add(args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
 		if args.is_empty() {
 			return Err(LockjawRuntimeError::InvalidArgumentCount(
@@ -28,25 +28,20 @@ impl<'a, 'b> Evaluator {
 		}
 		let mut accumulator = Atom::Int(0);
 		for expr in args {
-			accumulator = match expr {
-				Expression::SExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"SExpr cannot be an argument for +".to_string(),
-				)),
-				Expression::QExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"QExpr cannot be an argument for +".to_string(),
-				)),
-				Expression::Atom(a) => match (a, accumulator) {
-					(Atom::Float(f), Atom::Float(g)) => Ok(Atom::Float(f + g)),
-					(Atom::Float(f), Atom::Int(i)) => Ok(Atom::Float(i as f64 + f)),
-					(Atom::Int(i), Atom::Float(f)) => Ok(Atom::Float(i as f64 + f)),
-					(Atom::Int(i), Atom::Int(j)) => Ok(Atom::Int(i + j)),
-					(_, Atom::Symbol(_)) => unreachable!(),
-					(Atom::Symbol(_), _) => Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot add a non-number".to_string(),
-					)),
-				},
-			}?
+			let value = expr.get_atom()?;
+			accumulator = match (value, accumulator) {
+				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f + g),
+				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 + f),
+				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 + f),
+				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i + j),
+				_ => {
+					return Err(LockjawRuntimeError::InvalidArguments(
+						"Cannot add non-number".to_string(),
+					))
+				}
+			};
 		}
+
 		Ok(Expression::Atom(accumulator))
 	}
 
@@ -56,55 +51,33 @@ impl<'a, 'b> Evaluator {
 				"- requires at least one argument.".to_string(),
 			));
 		}
-		let mut accumulator = match args.pop_front().unwrap() {
-			Expression::Atom(val) => match val {
-				Atom::Float(f) => Atom::Float(f),
-				Atom::Int(i) => Atom::Int(i),
-				Atom::Symbol(_) => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Expected number got Symbol".to_string(),
-					))
-				}
-			},
-			Expression::SExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-			Expression::QExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-		};
+		let mut accumulator = args.pop_front().unwrap().get_atom()?;
 
 		if args.is_empty() {
 			return Ok(Expression::Atom(match accumulator {
 				Atom::Float(f) => Atom::Float(-f),
 				Atom::Int(i) => Atom::Int(-i),
-				Atom::Symbol(_) => unreachable!(),
+				_ => {
+					return Err(LockjawRuntimeError::InvalidArguments(
+						"Cannot negate non-number".to_string(),
+					))
+				}
 			}));
 		}
 
 		for expr in args {
-			accumulator = match expr {
-				Expression::SExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				)),
-				Expression::QExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				)),
-				Expression::Atom(a) => match (accumulator, a) {
-					(Atom::Float(f), Atom::Float(g)) => Ok(Atom::Float(f - g)),
-					(Atom::Float(f), Atom::Int(i)) => Ok(Atom::Float(i as f64 - f)),
-					(Atom::Int(i), Atom::Float(f)) => Ok(Atom::Float(i as f64 - f)),
-					(Atom::Int(i), Atom::Int(j)) => Ok(Atom::Int(i - j)),
-					(_, Atom::Symbol(_)) => unreachable!(),
-					(Atom::Symbol(_), _) => Err(LockjawRuntimeError::InvalidArguments(
-						"expected number got Symbol".to_string(),
-					)),
-				},
-			}?
+			let value = expr.get_atom()?;
+			accumulator = match (accumulator, value) {
+				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f - g),
+				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 - f),
+				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 - f),
+				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i - j),
+				_ => {
+					return Err(LockjawRuntimeError::InvalidArguments(
+						"Cannot Subtract non-number".to_string(),
+					))
+				}
+			};
 		}
 		Ok(Expression::Atom(accumulator))
 	}
@@ -115,46 +88,20 @@ impl<'a, 'b> Evaluator {
 				"+ requires at least one argument.".to_string(),
 			));
 		}
-		let mut accumulator = match args.pop_front().unwrap() {
-			Expression::Atom(val) => match val {
-				Atom::Float(f) => Atom::Float(f),
-				Atom::Int(i) => Atom::Int(i),
-				Atom::Symbol(_) => {
+		let mut accumulator = args.pop_front().unwrap().get_atom()?;
+		for expr in args {
+			let value = expr.get_atom()?;
+			accumulator = match (value, accumulator) {
+				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f * g),
+				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 * f),
+				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 * f),
+				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i * j),
+				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
-						"Expected number got Symbol".to_string(),
+						"Cannot multiply a non-number".to_string(),
 					))
 				}
-			},
-			Expression::SExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-			Expression::QExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-		};
-		for expr in args {
-			accumulator = match expr {
-				Expression::SExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"SExpr cannot be an argument for *".to_string(),
-				)),
-				Expression::QExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"QExpr cannot be an argument for *".to_string(),
-				)),
-				Expression::Atom(a) => match (a, accumulator) {
-					(Atom::Float(f), Atom::Float(g)) => Ok(Atom::Float(f * g)),
-					(Atom::Float(f), Atom::Int(i)) => Ok(Atom::Float(i as f64 * f)),
-					(Atom::Int(i), Atom::Float(f)) => Ok(Atom::Float(i as f64 * f)),
-					(Atom::Int(i), Atom::Int(j)) => Ok(Atom::Int(i * j)),
-					(_, Atom::Symbol(_)) => unreachable!(),
-					(Atom::Symbol(_), _) => Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot multiply a non-number".to_string(),
-					)),
-				},
-			}?
+			};
 		}
 		Ok(Expression::Atom(accumulator))
 	}
@@ -162,55 +109,27 @@ impl<'a, 'b> Evaluator {
 	fn div(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
 		if args.is_empty() {
 			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"+ requires at least one argument.".to_string(),
+				"/ requires at least one argument.".to_string(),
 			));
 		}
-		let mut accumulator = match args.pop_front().unwrap() {
-			Expression::Atom(val) => match val {
-				Atom::Float(f) => Atom::Float(f),
-				Atom::Int(i) => Atom::Int(i),
-				Atom::Symbol(_) => {
+
+		let mut accumulator = args.pop_front().unwrap().get_atom()?;
+
+		for expr in args {
+			let value = expr.get_atom()?;
+			accumulator = match (accumulator, value) {
+				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f / g),
+				(Atom::Float(f), Atom::Int(i)) => Atom::Float(f / i as f64),
+				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 / f),
+				(Atom::Int(i), Atom::Int(j)) => Atom::Float(i as f64 / j as f64),
+				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
-						"Expected number got Symbol".to_string(),
+						"Cannot divide a non-number".to_string(),
 					))
 				}
-			},
-			Expression::SExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-			Expression::QExpression(_) => {
-				return Err(LockjawRuntimeError::InvalidArguments(
-					"Expected number got SExpr".to_string(),
-				))
-			}
-		};
-		for expr in args {
-			accumulator = match expr {
-				Expression::SExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"SExpr cannot be an argument for /".to_string(),
-				)),
-				Expression::QExpression(_) => Err(LockjawRuntimeError::InvalidArguments(
-					"QExpr cannot be an argument for /".to_string(),
-				)),
-				Expression::Atom(a) => match (accumulator, a) {
-					(Atom::Float(f), Atom::Float(g)) => Ok(Atom::Float(f / g)),
-					(Atom::Float(f), Atom::Int(i)) => Ok(Atom::Float(f / i as f64)),
-					(Atom::Int(i), Atom::Float(f)) => Ok(Atom::Float(i as f64 / f)),
-					(Atom::Int(i), Atom::Int(j)) => Ok(Atom::Float(i as f64 / j as f64)),
-					(_, Atom::Symbol(_)) => unreachable!(),
-					(Atom::Symbol(_), _) => Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot divide a non-number".to_string(),
-					)),
-				},
-			}?
+			};
 		}
 		Ok(Expression::Atom(accumulator))
-	}
-
-	fn quote(args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		return Ok(Expression::QExpression(args));
 	}
 
 	fn car(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
@@ -219,16 +138,12 @@ impl<'a, 'b> Evaluator {
 				"Car only takes one argument.".to_string(),
 			));
 		}
-		if let Expression::QExpression(mut args) = args.pop_front().unwrap() {
-			if args.is_empty() {
-				Ok(Expression::QExpression(args))
-			} else {
-				Ok(args.pop_front().unwrap())
-			}
+
+		let mut args = args.pop_front().unwrap().get_from_q_expression()?;
+		if args.is_empty() {
+			Ok(Expression::QExpression(args))
 		} else {
-			Err(LockjawRuntimeError::InvalidArguments(
-				"Car can only operate on qexpr".to_string(),
-			))
+			Ok(args.pop_front().unwrap())
 		}
 	}
 
@@ -238,18 +153,14 @@ impl<'a, 'b> Evaluator {
 				"Cdr only takes one argument.".to_string(),
 			));
 		}
-		if let Expression::QExpression(mut args) = args.pop_front().unwrap() {
-			if args.is_empty() {
-				Ok(Expression::QExpression(args))
-			} else {
-				args.pop_front().unwrap();
-				Ok(Expression::QExpression(args))
-			}
-		} else {
-			Err(LockjawRuntimeError::InvalidArguments(
-				"Cdr can only operate on qexpr".to_string(),
-			))
+
+		let mut args = args.pop_front().unwrap().get_from_q_expression()?;
+
+		if !args.is_empty() {
+			args.pop_front().unwrap();
 		}
+
+		Ok(Expression::QExpression(args))
 	}
 
 	fn join(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
@@ -259,39 +170,34 @@ impl<'a, 'b> Evaluator {
 			));
 		}
 
-		match (args.pop_front().unwrap(), args.pop_front().unwrap()) {
-			(Expression::QExpression(mut a), Expression::QExpression(mut b)) => {
-				a.append(&mut b);
-				Ok(Expression::QExpression(a))
-			}
-			_ => Err(LockjawRuntimeError::InvalidArguments(
-				"Join can only operate on qexpr.".to_string(),
-			)),
-		}
+		let mut a = args.pop_front().unwrap().get_from_q_expression()?;
+		let mut b = args.pop_front().unwrap().get_from_q_expression()?;
+
+		a.append(&mut b);
+		Ok(Expression::QExpression(a))
 	}
 
-	fn def(&'a mut self, args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if let Some(Expression::QExpression(expressions)) = args.get(0) {
-			if expressions.len() != args.len() - 1 {
-				return Err(LockjawRuntimeError::InvalidArgumentCount(
-					"Def requires one value per variable name".to_string(),
-				));
-			} else {
-				for (token, value) in expressions.iter().zip(args.iter().skip(1)) {
-					if let Expression::Atom(Atom::Symbol(phrase)) = token {
-						self.env
-							.insert(phrase.to_string(), EnvVar::Variable(value.clone()));
-						/*
-						.get_mut(k)
-						.insert(phrase.to_string(), Function::Defined(value.clone()));*/
-					}
+	fn def(
+		&'a mut self,
+		mut args: VecDeque<Expression>,
+	) -> Result<Expression, LockjawRuntimeError> {
+		let expressions = args.pop_front().unwrap().get_from_q_expression()?;
+		if expressions.len() != args.len() {
+			Err(LockjawRuntimeError::InvalidArgumentCount(
+				"Def requires one value per variable name".to_string(),
+			))
+		} else {
+			for (token, value) in expressions.iter().zip(args.iter()) {
+				if let Expression::Atom(Atom::Symbol(phrase)) = token {
+					self.env
+						.insert(phrase.to_string(), EnvVar::Variable(value.clone()));
+					/*
+					.get_mut(k)
+					.insert(phrase.to_string(), Function::Defined(value.clone()));*/
 				}
-				return Ok(Expression::SExpression(VecDeque::new()));
 			}
+			Ok(Expression::SExpression(VecDeque::new()))
 		}
-		Err(LockjawRuntimeError::InvalidArguments(
-			"First argument to def must be a qexpr!".to_string(),
-		))
 	}
 
 	pub fn new() -> Self {
@@ -300,12 +206,11 @@ impl<'a, 'b> Evaluator {
 		env.insert("-".to_string(), EnvVar::Builtin(Self::sub));
 		env.insert("*".to_string(), EnvVar::Builtin(Self::mul));
 		env.insert("/".to_string(), EnvVar::Builtin(Self::div));
-		env.insert("quote".to_string(), EnvVar::Builtin(Self::quote));
 		env.insert("car".to_string(), EnvVar::Builtin(Self::car));
 		env.insert("cdr".to_string(), EnvVar::Builtin(Self::cdr));
 		env.insert("join".to_string(), EnvVar::Builtin(Self::join));
 
-		Evaluator { env: env }
+		Evaluator { env }
 	}
 
 	fn resolve_sexpression(
@@ -317,7 +222,6 @@ impl<'a, 'b> Evaluator {
 		}
 
 		// Must check for Quote before any evaluation is done
-
 		if let Some(Expression::Atom(Atom::Symbol(sym))) = expressions.get(0) {
 			if sym == "quote" {
 				expressions.pop_front();
@@ -331,8 +235,6 @@ impl<'a, 'b> Evaluator {
 			evals.push_back(self.evaluate(expression)?);
 		}
 
-		println!("Evals: {evals:?}");
-
 		// Just return single values
 		if evals.len() == 1 {
 			if let Some(e) = evals.pop_front() {
@@ -340,40 +242,16 @@ impl<'a, 'b> Evaluator {
 			}
 		}
 
-		if let Some(Expression::Atom(Atom::Symbol(s))) = evals.get(0) {
-			if let Some(e) = self.env.get(s) {
-				evals.pop_front(); // Remove operator from list
-				match e {
-					EnvVar::Builtin(f) => f(evals),
-					EnvVar::Variable(val) => Ok(val.clone()), // TODO: I hate this a little bit.
-				}
-			} else {
-				if let Some(Expression::Atom(Atom::Symbol(sym))) = evals.get(0) {
-					if sym == "eval" {
-						evals.pop_front();
-						return if let Some(Expression::QExpression(exprlist)) = evals.pop_front() {
-							self.resolve_sexpression(exprlist)
-						} else {
-							Err(LockjawRuntimeError::InvalidArguments(
-								"Can only eval qexprs!".to_string(),
-							))
-						};
-					}
-				}
+		let symbol = evals.pop_front().unwrap().get_atom()?.get_as_symbol()?;
 
-				if let Some(Expression::Atom(Atom::Symbol(sym))) = evals.pop_front() {
-					if sym == "def" {
-						println!("{evals:?}");
-						return self.def(evals);
-					}
-				}
-
-				return Err(LockjawRuntimeError::UnboundExpression);
-			}
-		} else {
-			Err(LockjawRuntimeError::InvalidArguments(
-				"Invalid Operation".to_string(),
-			))
+		match symbol.as_str() {
+			"eval" => self.resolve_sexpression(evals.pop_front().unwrap().get_from_q_expression()?),
+			"def" => self.def(evals),
+			var => match self.env.get(var) {
+				Some(EnvVar::Builtin(f)) => f(evals),
+				Some(EnvVar::Variable(val)) => Ok(val.clone()),
+				None => Err(LockjawRuntimeError::UnboundExpression),
+			},
 		}
 	}
 
@@ -394,9 +272,8 @@ impl<'a, 'b> Evaluator {
 					Err(LockjawRuntimeError::UnboundExpression)
 				}
 			}
-			Expression::Atom(a) => Ok(Expression::Atom(a.clone())),
-			Expression::QExpression(q) => Ok(Expression::QExpression(q.clone())),
 			Expression::SExpression(expressions) => self.resolve_sexpression(expressions.clone()),
+			_ => Ok(expression),
 		}
 	}
 }
