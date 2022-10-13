@@ -3,6 +3,7 @@ use std::{collections::VecDeque, fmt::Display};
 use crate::{
 	evaluator::LockjawRuntimeError,
 	lexer::{Lexeme, LexemeType},
+	numeric::Numeric,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -12,8 +13,7 @@ pub enum LockjawParseError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Atom {
-	Float(f64),
-	Int(i64),
+	Number(Numeric),
 	Symbol(String),
 }
 
@@ -33,8 +33,7 @@ impl Atom {
 impl Display for Atom {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Atom::Float(v) => write!(f, "Float: {}", v),
-			Atom::Int(v) => write!(f, "Int: {}", v),
+			Atom::Number(num) => write!(f, "Number: {}", num),
 			Atom::Symbol(v) => write!(f, "Symbol: {}", v),
 		}
 	}
@@ -129,8 +128,8 @@ impl Expression {
 				Ok(Self::QExpression(exprlist))
 			}
 			term => Ok(Expression::Atom(match term {
-				LexemeType::Integer(value) => Atom::Int(value),
-				LexemeType::Float(value) => Atom::Float(value),
+				LexemeType::Integer(value) => Atom::Number(Numeric::Int(value)),
+				LexemeType::Float(value) => Atom::Number(Numeric::Float(value)),
 				LexemeType::RawSymbol(symb) => Atom::Symbol(symb.to_string()),
 				_ => {
 					return Err(LockjawParseError::InvalidLiteral {

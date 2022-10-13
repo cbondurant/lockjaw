@@ -1,4 +1,7 @@
-use crate::parser::{Atom, Expression};
+use crate::{
+	numeric::Numeric,
+	parser::{Atom, Expression},
+};
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,14 +29,11 @@ impl<'a> Evaluator {
 				"+ requires at least one argument.".to_string(),
 			));
 		}
-		let mut accumulator = Atom::Int(0);
+		let mut accumulator = Atom::Number(Numeric::Int(0));
 		for expr in args {
 			let value = expr.get_atom()?;
 			accumulator = match (value, accumulator) {
-				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f + g),
-				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 + f),
-				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 + f),
-				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i + j),
+				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a + b),
 				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
 						"Cannot add non-number".to_string(),
@@ -55,8 +55,7 @@ impl<'a> Evaluator {
 
 		if args.is_empty() {
 			return Ok(Expression::Atom(match accumulator {
-				Atom::Float(f) => Atom::Float(-f),
-				Atom::Int(i) => Atom::Int(-i),
+				Atom::Number(num) => Atom::Number(-num),
 				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
 						"Cannot negate non-number".to_string(),
@@ -68,10 +67,7 @@ impl<'a> Evaluator {
 		for expr in args {
 			let value = expr.get_atom()?;
 			accumulator = match (accumulator, value) {
-				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f - g),
-				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 - f),
-				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 - f),
-				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i - j),
+				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a - b),
 				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
 						"Cannot Subtract non-number".to_string(),
@@ -92,10 +88,7 @@ impl<'a> Evaluator {
 		for expr in args {
 			let value = expr.get_atom()?;
 			accumulator = match (value, accumulator) {
-				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f * g),
-				(Atom::Float(f), Atom::Int(i)) => Atom::Float(i as f64 * f),
-				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 * f),
-				(Atom::Int(i), Atom::Int(j)) => Atom::Int(i * j),
+				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a * b),
 				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
 						"Cannot multiply a non-number".to_string(),
@@ -118,10 +111,7 @@ impl<'a> Evaluator {
 		for expr in args {
 			let value = expr.get_atom()?;
 			accumulator = match (accumulator, value) {
-				(Atom::Float(f), Atom::Float(g)) => Atom::Float(f / g),
-				(Atom::Float(f), Atom::Int(i)) => Atom::Float(f / i as f64),
-				(Atom::Int(i), Atom::Float(f)) => Atom::Float(i as f64 / f),
-				(Atom::Int(i), Atom::Int(j)) => Atom::Float(i as f64 / j as f64),
+				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a / b),
 				_ => {
 					return Err(LockjawRuntimeError::InvalidArguments(
 						"Cannot divide a non-number".to_string(),
