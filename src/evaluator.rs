@@ -1,25 +1,8 @@
-use crate::{
-	numeric::Numeric,
-	parser::{Atom, Expression},
-};
+use crate::{numeric::Numeric, types::*};
 use std::collections::{HashMap, VecDeque};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LockjawRuntimeError {
-	InvalidArguments(String),
-	InvalidArgumentCount(String),
-	UnboundExpression,
-}
-
-type BuiltinFunction = fn(VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError>;
-
-enum EnvVar {
-	Builtin(BuiltinFunction),
-	Variable(Expression),
-}
-
 pub struct Evaluator {
-	env: HashMap<String, EnvVar>,
+	env: HashMap<String, Value>,
 }
 
 impl<'a> Evaluator {
@@ -180,7 +163,7 @@ impl<'a> Evaluator {
 			for (token, value) in expressions.iter().zip(args.iter()) {
 				if let Expression::Atom(Atom::Symbol(phrase)) = token {
 					self.env
-						.insert(phrase.to_string(), EnvVar::Variable(value.clone()));
+						.insert(phrase.to_string(), Value::Variable(Box::new(value.clone())));
 					/*
 					.get_mut(k)
 					.insert(phrase.to_string(), Function::Defined(value.clone()));*/
@@ -191,14 +174,16 @@ impl<'a> Evaluator {
 	}
 
 	pub fn new() -> Self {
-		let mut env: HashMap<String, EnvVar> = HashMap::new();
-		env.insert("+".to_string(), EnvVar::Builtin(Self::add));
-		env.insert("-".to_string(), EnvVar::Builtin(Self::sub));
-		env.insert("*".to_string(), EnvVar::Builtin(Self::mul));
-		env.insert("/".to_string(), EnvVar::Builtin(Self::div));
-		env.insert("car".to_string(), EnvVar::Builtin(Self::car));
-		env.insert("cdr".to_string(), EnvVar::Builtin(Self::cdr));
-		env.insert("join".to_string(), EnvVar::Builtin(Self::join));
+		let mut env: HashMap<String, Value> = HashMap::new();
+		env.insert("+".to_string(), Value::Builtin(Self::add));
+		env.insert("-".to_string(), Value::Builtin(Self::sub));
+		env.insert("*".to_string(), Value::Builtin(Self::mul));
+		env.insert("/".to_string(), Value::Builtin(Self::div));
+		env.insert("car".to_string(), Value::Builtin(Self::car));
+		env.insert("cdr".to_string(), Value::Builtin(Self::cdr));
+		env.insert("join".to_string(), Value::Builtin(Self::join));
+		env.insert("eval".to_string(), Value::Eval);
+		env.insert("def".to_string(), Value::Def);
 
 		Evaluator { env }
 	}
@@ -225,23 +210,30 @@ impl<'a> Evaluator {
 			evals.push_back(self.evaluate(expression)?);
 		}
 
-		// Just return single values
+		// If single symbol, attempt to resolve.
 		if evals.len() == 1 {
-			if let Some(e) = evals.pop_front() {
-				return Ok(e);
-			}
+			return Ok(evals.pop_front().unwrap());
 		}
 
-		let symbol = evals.pop_front().unwrap().get_atom()?.get_as_symbol()?;
+		let val = evals.pop_front().unwrap().get_atom()?.get_as_value()?;
+		match val {
+			Value::Builtin(f) => f(evals),
+			Value::Eval => {
+				self.resolve_sexpression(evals.pop_front().unwrap().get_from_q_expression()?)
+			}
+			Value::Def => self.def(evals),
+			Value::Variable(_) => Err(LockjawRuntimeError::InvalidFunction(format!(
+				"Expected Function, got {}",
+				val
+			))),
+		}
+	}
 
-		match symbol.as_str() {
-			"eval" => self.resolve_sexpression(evals.pop_front().unwrap().get_from_q_expression()?),
-			"def" => self.def(evals),
-			var => match self.env.get(var) {
-				Some(EnvVar::Builtin(f)) => f(evals),
-				Some(EnvVar::Variable(val)) => Ok(val.clone()),
-				None => Err(LockjawRuntimeError::UnboundExpression),
-			},
+	fn evaluate_symbol(&self, symb: &str) -> Result<Expression, LockjawRuntimeError> {
+		match self.env.get(symb) {
+			Some(Value::Variable(e)) => Ok(*e.clone()), // Prevent nesting atoms in values in atoms
+			Some(val) => Ok(Expression::Atom(Atom::Value(val.clone()))),
+			None => Err(LockjawRuntimeError::UnboundExpression),
 		}
 	}
 
@@ -250,18 +242,8 @@ impl<'a> Evaluator {
 		expression: Expression,
 	) -> Result<Expression, LockjawRuntimeError> {
 		match &expression {
-			Expression::Atom(Atom::Symbol(s)) => {
-				if (s == "def") | (s == "eval") {
-					Ok(expression)
-				} else if let Some(t) = self.env.get(s) {
-					match t {
-						EnvVar::Builtin(_) => Ok(expression),
-						EnvVar::Variable(val) => Ok(val.clone()),
-					}
-				} else {
-					Err(LockjawRuntimeError::UnboundExpression)
-				}
-			}
+			Expression::Atom(Atom::Symbol(symb)) => self.evaluate_symbol(symb),
+			Expression::Atom(_) => Ok(expression),
 			Expression::SExpression(expressions) => self.resolve_sexpression(expressions.clone()),
 			_ => Ok(expression),
 		}

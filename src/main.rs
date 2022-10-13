@@ -3,6 +3,7 @@ mod evaluator;
 mod lexer;
 mod numeric;
 mod parser;
+mod types;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -29,7 +30,7 @@ fn main() {
 				let lexemes: Result<Vec<lexer::Lexeme>, parser::LockjawParseError> =
 					lexer::Lexer::new(&line).collect();
 				match lexemes {
-					Ok(lexemes) => match parser::Expression::parse_root(lexemes.as_slice()) {
+					Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
 						Ok(lj) => {
 							println!("{:#?}", lj);
 							println!("{:?}", environment.evaluate(lj));
@@ -72,7 +73,7 @@ mod tests {
 	use crate::lexer;
 	use crate::numeric::Numeric;
 	use crate::parser;
-	use crate::parser::{Atom, Expression};
+	use crate::types::*;
 
 	#[test]
 	fn plus_adds() {
@@ -81,7 +82,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
 			assert_eq!(x, 7);
@@ -97,7 +98,7 @@ mod tests {
 			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 				.unwrap();
-			let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 			result = environment.evaluate(parse).unwrap();
 		}
 		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
@@ -112,7 +113,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
 			assert_eq!(x, 0);
@@ -126,7 +127,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
 			assert_eq!(x, -1);
@@ -140,7 +141,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
 		assert!(m);
@@ -150,7 +151,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
 		assert!(m);
@@ -160,7 +161,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
 		assert!(m);
@@ -170,7 +171,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
 		assert!(m);
@@ -183,7 +184,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::QExpression(_));
 		assert!(m);
@@ -196,7 +197,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Int(6))));
 		assert!(m);
@@ -209,7 +210,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		if let Expression::Atom(Atom::Symbol(sym)) = result {
 			assert_eq!(sym, "+");
@@ -223,7 +224,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		if let Expression::QExpression(v) = result {
 			match v.get(0) {
@@ -245,7 +246,7 @@ mod tests {
 		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 			.unwrap();
-		let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 		let result = environment.evaluate(parse).unwrap();
 		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Int(6))));
 		assert!(m);
@@ -260,7 +261,7 @@ mod tests {
 			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
 				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
 				.unwrap();
-			let parse = parser::Expression::parse_root(lexemes.as_slice()).unwrap();
+			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 			result = environment.evaluate(parse).unwrap();
 		}
 		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
