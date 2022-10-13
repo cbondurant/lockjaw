@@ -1,4 +1,5 @@
-use crate::{numeric::Numeric, types::*};
+use crate::builtins;
+use crate::types::*;
 use std::collections::{HashMap, VecDeque};
 
 pub struct Evaluator {
@@ -6,150 +7,6 @@ pub struct Evaluator {
 }
 
 impl<'a> Evaluator {
-	fn add(args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.is_empty() {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"+ requires at least one argument.".to_string(),
-			));
-		}
-		let mut accumulator = Atom::Number(Numeric::Int(0));
-		for expr in args {
-			let value = expr.get_atom()?;
-			accumulator = match (value, accumulator) {
-				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a + b),
-				_ => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot add non-number".to_string(),
-					))
-				}
-			};
-		}
-
-		Ok(Expression::Atom(accumulator))
-	}
-
-	fn sub(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.is_empty() {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"- requires at least one argument.".to_string(),
-			));
-		}
-		let mut accumulator = args.pop_front().unwrap().get_atom()?;
-
-		if args.is_empty() {
-			return Ok(Expression::Atom(match accumulator {
-				Atom::Number(num) => Atom::Number(-num),
-				_ => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot negate non-number".to_string(),
-					))
-				}
-			}));
-		}
-
-		for expr in args {
-			let value = expr.get_atom()?;
-			accumulator = match (accumulator, value) {
-				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a - b),
-				_ => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot Subtract non-number".to_string(),
-					))
-				}
-			};
-		}
-		Ok(Expression::Atom(accumulator))
-	}
-
-	fn mul(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.is_empty() {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"+ requires at least one argument.".to_string(),
-			));
-		}
-		let mut accumulator = args.pop_front().unwrap().get_atom()?;
-		for expr in args {
-			let value = expr.get_atom()?;
-			accumulator = match (value, accumulator) {
-				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a * b),
-				_ => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot multiply a non-number".to_string(),
-					))
-				}
-			};
-		}
-		Ok(Expression::Atom(accumulator))
-	}
-
-	fn div(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.is_empty() {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"/ requires at least one argument.".to_string(),
-			));
-		}
-
-		let mut accumulator = args.pop_front().unwrap().get_atom()?;
-
-		for expr in args {
-			let value = expr.get_atom()?;
-			accumulator = match (accumulator, value) {
-				(Atom::Number(a), Atom::Number(b)) => Atom::Number(a / b),
-				_ => {
-					return Err(LockjawRuntimeError::InvalidArguments(
-						"Cannot divide a non-number".to_string(),
-					))
-				}
-			};
-		}
-		Ok(Expression::Atom(accumulator))
-	}
-
-	fn car(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.len() != 1 {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"Car only takes one argument.".to_string(),
-			));
-		}
-
-		let mut args = args.pop_front().unwrap().get_from_q_expression()?;
-		if args.is_empty() {
-			Ok(Expression::QExpression(args))
-		} else {
-			Ok(args.pop_front().unwrap())
-		}
-	}
-
-	fn cdr(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.len() != 1 {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"Cdr only takes one argument.".to_string(),
-			));
-		}
-
-		let mut args = args.pop_front().unwrap().get_from_q_expression()?;
-
-		if !args.is_empty() {
-			args.pop_front().unwrap();
-		}
-
-		Ok(Expression::QExpression(args))
-	}
-
-	fn join(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
-		if args.len() != 2 {
-			return Err(LockjawRuntimeError::InvalidArgumentCount(
-				"Join requires two arguments.".to_string(),
-			));
-		}
-
-		let mut a = args.pop_front().unwrap().get_from_q_expression()?;
-		let mut b = args.pop_front().unwrap().get_from_q_expression()?;
-
-		a.append(&mut b);
-		Ok(Expression::QExpression(a))
-	}
-
 	fn def(
 		&'a mut self,
 		mut args: VecDeque<Expression>,
@@ -175,13 +32,13 @@ impl<'a> Evaluator {
 
 	pub fn new() -> Self {
 		let mut env: HashMap<String, Value> = HashMap::new();
-		env.insert("+".to_string(), Value::Builtin(Self::add));
-		env.insert("-".to_string(), Value::Builtin(Self::sub));
-		env.insert("*".to_string(), Value::Builtin(Self::mul));
-		env.insert("/".to_string(), Value::Builtin(Self::div));
-		env.insert("car".to_string(), Value::Builtin(Self::car));
-		env.insert("cdr".to_string(), Value::Builtin(Self::cdr));
-		env.insert("join".to_string(), Value::Builtin(Self::join));
+		env.insert("+".to_string(), Value::Builtin(builtins::add));
+		env.insert("-".to_string(), Value::Builtin(builtins::sub));
+		env.insert("*".to_string(), Value::Builtin(builtins::mul));
+		env.insert("/".to_string(), Value::Builtin(builtins::div));
+		env.insert("car".to_string(), Value::Builtin(builtins::car));
+		env.insert("cdr".to_string(), Value::Builtin(builtins::cdr));
+		env.insert("join".to_string(), Value::Builtin(builtins::join));
 		env.insert("eval".to_string(), Value::Eval);
 		env.insert("def".to_string(), Value::Def);
 

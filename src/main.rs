@@ -1,4 +1,5 @@
 //#![allow(dead_code)]
+mod builtins;
 mod evaluator;
 mod lexer;
 mod numeric;
