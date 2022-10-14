@@ -1,5 +1,6 @@
 //#![allow(dead_code)]
 mod builtins;
+mod environment;
 mod evaluator;
 mod lexer;
 mod numeric;
@@ -76,197 +77,131 @@ mod tests {
 	use crate::parser;
 	use crate::types::*;
 
+	fn assert_program_output(commands: Vec<&str>, expected_output: Expression) {
+		let mut environment = evaluator::Evaluator::new();
+		let mut result: Expression = Expression::SExpression(VecDeque::new());
+		for command in commands {
+			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
+				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
+				.unwrap();
+			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
+			result = environment.evaluate(parse).unwrap();
+		}
+		assert_eq!(expected_output, result);
+	}
+
 	#[test]
 	fn plus_adds() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "+ 3 4";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
-			assert_eq!(x, 7);
-		}
+		assert_program_output(
+			vec!["+ 3 4"],
+			Expression::Atom(Atom::Number(Numeric::Int(7))),
+		);
 	}
 
 	#[test]
 	fn plus_adds_variables() {
-		let mut environment = evaluator::Evaluator::new();
-		let commands = ["def {x} 3", "+ x 4"];
-		let mut result: Expression = Expression::SExpression(VecDeque::new());
-		for command in commands {
-			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-				.unwrap();
-			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-			result = environment.evaluate(parse).unwrap();
-		}
-		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
-			assert_eq!(x, 7);
-		}
+		assert_program_output(
+			vec!["def {x} 3", "+ x 4"],
+			Expression::Atom(Atom::Number(Numeric::Int(7))),
+		);
 	}
 
 	#[test]
 	fn minus_subtracts() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "- 3 1 1 1 ";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
-			assert_eq!(x, 0);
-		}
+		assert_program_output(
+			vec!["- 3 1 1 1"],
+			Expression::Atom(Atom::Number(Numeric::Int(0))),
+		);
 	}
 
 	#[test]
 	fn minus_negates() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "- 1";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
-			assert_eq!(x, -1);
-		}
+		assert_program_output(
+			vec!["- 1"],
+			Expression::Atom(Atom::Number(Numeric::Int(-1))),
+		);
 	}
 
 	#[test]
 	fn math_operations_upcast_to_float() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "+ 1 2.4";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
-		assert!(m);
+		assert_program_output(
+			vec!["+ 1 2.4"],
+			Expression::Atom(Atom::Number(Numeric::Float(3.4))),
+		);
 
-		let mut environment = evaluator::Evaluator::new();
-		let command = "- 1 2.4";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
-		assert!(m);
+		assert_program_output(
+			vec!["- 1 2.4"],
+			Expression::Atom(Atom::Number(Numeric::Float(-1.4))),
+		);
 
-		let mut environment = evaluator::Evaluator::new();
-		let command = "* 1 2.4";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
-		assert!(m);
+		assert_program_output(
+			vec!["* 1 2.4"],
+			Expression::Atom(Atom::Number(Numeric::Float(2.4))),
+		);
 
-		let mut environment = evaluator::Evaluator::new();
-		let command = "/ 1 2";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Float(_))));
-		assert!(m);
+		assert_program_output(
+			vec!["/ 1 2"],
+			Expression::Atom(Atom::Number(Numeric::Float(0.5))),
+		);
 	}
 
 	#[test]
 	fn quote_handles_valid_expressions() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "quote 1 2 4 2 + - * \\ / 34 dsfgsd 345 &";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::QExpression(_));
-		assert!(m);
+		assert_program_output(
+			vec!["quote 1 2 4 2 + - * \\ / dsfgsd &"],
+			Expression::QExpression(VecDeque::from([
+				Expression::Atom(Atom::Number(Numeric::Int(1))),
+				Expression::Atom(Atom::Number(Numeric::Int(2))),
+				Expression::Atom(Atom::Number(Numeric::Int(4))),
+				Expression::Atom(Atom::Number(Numeric::Int(2))),
+				Expression::Atom(Atom::Symbol(String::from("+"))),
+				Expression::Atom(Atom::Symbol(String::from("-"))),
+				Expression::Atom(Atom::Symbol(String::from("*"))),
+				Expression::Atom(Atom::Symbol(String::from("\\"))),
+				Expression::Atom(Atom::Symbol(String::from("/"))),
+				Expression::Atom(Atom::Symbol(String::from("dsfgsd"))),
+				Expression::Atom(Atom::Symbol(String::from("&"))),
+			])),
+		);
 	}
 
 	#[test]
 	fn curly_brackets_quote() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "eval {+ 1 2 3}";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Int(6))));
-		assert!(m);
+		assert_program_output(
+			vec!["eval {+ 1 2 3}"],
+			Expression::Atom(Atom::Number(Numeric::Int(6))),
+		);
 	}
 
 	#[test]
 	fn car_gets_front_element_of_qexpr() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "car {+ 1 2 3}";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		if let Expression::Atom(Atom::Symbol(sym)) = result {
-			assert_eq!(sym, "+");
-		}
+		assert_program_output(
+			vec!["car {+ 1 2 3}"],
+			Expression::Atom(Atom::Symbol(String::from("+"))),
+		);
 	}
 
 	#[test]
 	fn cdr_gets_tail_of_qexpr() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "cdr {+ 1 }";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		if let Expression::QExpression(v) = result {
-			match v.get(0) {
-				Some(atom) => assert!(matches!(
-					atom,
-					&Expression::Atom(Atom::Number(Numeric::Int(1)))
-				)),
-				None => assert!(false),
-			}
-		} else {
-			assert!(false)
-		}
+		assert_program_output(
+			vec!["cdr {+ 1 }"],
+			Expression::QExpression(VecDeque::from([Expression::Atom(Atom::Number(
+				Numeric::Int(1),
+			))])),
+		);
 	}
 
 	#[test]
 	fn join_combines_qexprs() {
-		let mut environment = evaluator::Evaluator::new();
-		let command = "eval (join {+} {1 2 3})";
-		let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-			.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-			.unwrap();
-		let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-		let result = environment.evaluate(parse).unwrap();
-		let m = matches!(result, Expression::Atom(Atom::Number(Numeric::Int(6))));
-		assert!(m);
+		assert_program_output(
+			vec!["eval (join {+} {1 2 3})"],
+			Expression::Atom(Atom::Number(Numeric::Int(6))),
+		);
 	}
 
 	#[test]
 	fn def_defines() {
-		let mut environment = evaluator::Evaluator::new();
-		let commands = ["def {x} 3", "x"];
-		let mut result: Expression = Expression::SExpression(VecDeque::new());
-		for command in commands {
-			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
-				.unwrap();
-			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
-			result = environment.evaluate(parse).unwrap();
-		}
-		if let Expression::Atom(Atom::Number(Numeric::Int(x))) = result {
-			assert_eq!(x, 3);
-		}
+		let commands = vec!["def {x} 3", "x"];
+		assert_program_output(commands, Expression::Atom(Atom::Number(Numeric::Int(3))));
 	}
 }
