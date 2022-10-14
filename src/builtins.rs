@@ -159,5 +159,6 @@ pub fn fun(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeE
 	Ok(Expression::Atom(Atom::Value(Value::UserDef(UserFunc {
 		args: formals,
 		body,
+		curried: VecDeque::new(),
 	}))))
 }

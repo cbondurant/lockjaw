@@ -22,11 +22,10 @@ impl Environment {
 	}
 
 	pub fn get(&self, k: String) -> Option<&Value> {
-		// Starting at the end (newest environment), look for the first instance of key
-		self.internal
-			.iter()
-			.rev()
-			.find_map(|env| env.get(k.as_str()))
+		// get from local env if exists, otherwise check global
+		self.internal[self.internal.len() - 1]
+			.get(k.as_str())
+			.or(self.internal[0].get(k.as_str()))
 	}
 
 	pub fn push_env(&mut self) {

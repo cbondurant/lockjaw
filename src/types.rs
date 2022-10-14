@@ -16,6 +16,7 @@ type BuiltinFunction = fn(VecDeque<Expression>) -> Result<Expression, LockjawRun
 pub struct UserFunc {
 	pub args: VecDeque<Expression>,
 	pub body: VecDeque<Expression>,
+	pub curried: VecDeque<Expression>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

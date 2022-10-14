@@ -46,23 +46,34 @@ impl Evaluator {
 		func: UserFunc,
 		args: VecDeque<Expression>,
 	) -> Result<Expression, LockjawRuntimeError> {
-		// Move into child environment
-		self.env.push_env();
+		// Evaluate if we have enough arguments.
+		match func.args.len().cmp(&(func.curried.len() + args.len())) {
+			std::cmp::Ordering::Equal => {
+				// Move into child environment
+				self.env.push_env();
+				let args = func.curried.iter().chain(args.iter());
+				for (arg, argv) in func.args.iter().zip(args) {
+					if let Expression::Atom(Atom::Symbol(symb)) = arg {
+						self.env
+							.put(symb.clone(), Value::Variable(Box::new(argv.clone())));
+					}
+				}
 
-		// Add arguments to the child environment
-		for (arg, argv) in func.args.iter().zip(args) {
-			if let Expression::Atom(Atom::Symbol(symb)) = arg {
-				self.env.put(symb.clone(), Value::Variable(Box::new(argv)));
+				// Evaluate Function
+				let value = self.resolve_sexpression(func.body)?;
+				// Move out of child environment
+				self.env.pop_env();
+				Ok(value)
 			}
+			std::cmp::Ordering::Greater => {
+				let mut curriedfunc = func.clone();
+				curriedfunc.curried.extend(args);
+				Ok(Expression::Atom(Atom::Value(Value::UserDef(curriedfunc))))
+			}
+			std::cmp::Ordering::Less => Err(LockjawRuntimeError::InvalidArgumentCount(
+				String::from("Too many arguments for function!"),
+			)),
 		}
-
-		// Evaluate Function
-		let value = self.resolve_sexpression(func.body)?;
-
-		// Move out of child environment
-		self.env.pop_env();
-
-		Ok(value)
 	}
 
 	fn resolve_sexpression(

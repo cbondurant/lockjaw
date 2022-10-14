@@ -220,4 +220,12 @@ mod tests {
 			Expression::Atom(Atom::Number(Numeric::Int(16))),
 		)
 	}
+
+	#[test]
+	fn unbound_curried_functions_evaluate() {
+		assert_program_output(
+			vec!["def {two_args} (fun {x y} {* y x})", "(two_args 2) 2"],
+			Expression::Atom(Atom::Number(Numeric::Int(4))),
+		)
+	}
 }
