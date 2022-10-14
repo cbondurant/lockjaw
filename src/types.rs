@@ -13,8 +13,15 @@ pub enum LockjawRuntimeError {
 type BuiltinFunction = fn(VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError>;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct UserFunc {
+	pub args: VecDeque<Expression>,
+	pub body: VecDeque<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
 	Builtin(BuiltinFunction),
+	UserDef(UserFunc),
 	// Special values because they have special clling conventions for funcs
 	Eval,
 	Def,
@@ -25,7 +32,10 @@ impl Display for Value {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Value::Variable(e) => write!(f, "{}", *e),
-			Value::Eval | Value::Def | Value::Builtin(_) => write!(f, "<BUILTIN_FUNC>"),
+			Value::Eval | Value::Def | Value::Builtin(_) => {
+				write!(f, "<BUILTIN_FUNC>")
+			}
+			Value::UserDef(_) => write!(f, "<USER FUNC>"),
 		}
 	}
 }

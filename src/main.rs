@@ -204,4 +204,20 @@ mod tests {
 		let commands = vec!["def {x} 3", "x"];
 		assert_program_output(commands, Expression::Atom(Atom::Number(Numeric::Int(3))));
 	}
+
+	#[test]
+	fn functions_define_properly() {
+		assert_program_output(
+			vec!["def {inc} (fun {x} {+ x 1})", "inc 3"],
+			Expression::Atom(Atom::Number(Numeric::Int(4))),
+		);
+	}
+
+	#[test]
+	fn functions_can_call_functions() {
+		assert_program_output(
+			vec!["def {square} (fun {x} {* x x})", "square 4"],
+			Expression::Atom(Atom::Number(Numeric::Int(16))),
+		)
+	}
 }

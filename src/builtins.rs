@@ -145,3 +145,19 @@ pub fn join(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntime
 	a.append(&mut b);
 	Ok(Expression::QExpression(a))
 }
+
+pub fn fun(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"Functions require three arguments!",
+		)));
+	}
+
+	// This is so messy and can crash out...
+	let formals = args.pop_front().unwrap().get_from_q_expression()?;
+	let body = args.pop_front().unwrap().get_from_q_expression()?;
+	Ok(Expression::Atom(Atom::Value(Value::UserDef(UserFunc {
+		args: formals,
+		body,
+	}))))
+}
