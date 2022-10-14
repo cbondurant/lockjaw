@@ -23,6 +23,8 @@ impl Environment {
 
 	pub fn get(&self, k: String) -> Option<&Value> {
 		// get from local env if exists, otherwise check global
+		// Decided against checking intermediate values since currying
+		// Can be used to import the immediate environment
 		self.internal[self.internal.len() - 1]
 			.get(k.as_str())
 			.or(self.internal[0].get(k.as_str()))

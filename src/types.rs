@@ -7,6 +7,7 @@ pub enum LockjawRuntimeError {
 	InvalidArguments(String),
 	InvalidArgumentCount(String),
 	InvalidFunction(String),
+	CondFailure,
 	UnboundExpression,
 }
 
@@ -26,6 +27,7 @@ pub enum Value {
 	// Special values because they have special clling conventions for funcs
 	Eval,
 	Def,
+	Cond,
 	Variable(Box<Expression>),
 }
 
@@ -33,7 +35,7 @@ impl Display for Value {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Value::Variable(e) => write!(f, "{}", *e),
-			Value::Eval | Value::Def | Value::Builtin(_) => {
+			Value::Eval | Value::Def | Value::Cond | Value::Builtin(_) => {
 				write!(f, "<BUILTIN_FUNC>")
 			}
 			Value::UserDef(_) => write!(f, "<USER FUNC>"),
@@ -46,6 +48,7 @@ pub enum Atom {
 	Number(Numeric),
 	Symbol(String),
 	Value(Value),
+	Bool(bool),
 }
 
 impl Atom {
@@ -79,6 +82,7 @@ impl Display for Atom {
 			Atom::Number(num) => write!(f, "Number: {}", num),
 			Atom::Symbol(v) => write!(f, "Symbol: {}", v),
 			Atom::Value(v) => write!(f, "{}", v),
+			Atom::Bool(v) => write!(f, "{}", v),
 		}
 	}
 }

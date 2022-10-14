@@ -34,7 +34,7 @@ fn main() {
 				match lexemes {
 					Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
 						Ok(lj) => {
-							println!("{:#?}", lj);
+							//println!("{:#?}", lj);
 							println!("{:?}", environment.evaluate(lj));
 						}
 						Err(parser_err) => {
@@ -226,6 +226,22 @@ mod tests {
 		assert_program_output(
 			vec!["def {two_args} (fun {x y} {* y x})", "(two_args 2) 2"],
 			Expression::Atom(Atom::Number(Numeric::Int(4))),
+		)
+	}
+
+	#[test]
+	fn can_recurse_using_cond() {
+		assert_program_output(
+			vec![
+				"def {lat?}
+				(fun {l}
+					{cond
+						{(null? l) #t}
+						{(atom? (car l)) (lat? (cdr l))}
+						{else #f}})",
+				"lat? {1 2 3 4 5 6 7 8 9 0}",
+			],
+			Expression::Atom(Atom::Bool(true)),
 		)
 	}
 }

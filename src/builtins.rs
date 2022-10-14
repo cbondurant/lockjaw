@@ -162,3 +162,33 @@ pub fn fun(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeE
 		curried: VecDeque::new(),
 	}))))
 }
+
+pub fn null_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 1 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"null? takes exactly one argument",
+		)));
+	}
+
+	match args.pop_front() {
+		Some(Expression::QExpression(v)) | Some(Expression::SExpression(v)) => {
+			Ok(Expression::Atom(Atom::Bool(v.is_empty())))
+		}
+		Some(Expression::Atom(_)) => Ok(Expression::Atom(Atom::Bool(false))),
+		None => unreachable!(),
+	}
+}
+
+pub fn atom_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 1 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"null? takes exactly one argument",
+		)));
+	}
+
+	match args.pop_front() {
+		Some(Expression::Atom(_)) => Ok(Expression::Atom(Atom::Bool(true))),
+		Some(_) => Ok(Expression::Atom(Atom::Bool(false))),
+		None => unreachable!(),
+	}
+}

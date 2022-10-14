@@ -25,18 +25,59 @@ impl Evaluator {
 		}
 	}
 
+	pub fn cond(&mut self, args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+		if args.is_empty() {
+			return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+				"At least one condition is required for a cond statement.",
+			)));
+		}
+
+		for arg in args {
+			let mut qexpr = arg.get_from_q_expression()?;
+			if qexpr.len() != 2 {
+				return Err(LockjawRuntimeError::InvalidArguments(String::from(
+					"All Conditions must have one query and one predicate.",
+				)));
+			}
+			let query_result = self.evaluate(qexpr.pop_front().unwrap())?;
+			match query_result {
+				Expression::Atom(Atom::Bool(true)) => {
+					let eval = self.evaluate(qexpr.pop_front().unwrap())?;
+					return Ok(eval);
+				}
+				_ => continue,
+			}
+		}
+		Err(LockjawRuntimeError::CondFailure)
+	}
+
 	pub fn new() -> Self {
 		let mut env: Environment = Environment::new();
-		env.def("+".to_string(), Value::Builtin(builtins::add));
-		env.def("-".to_string(), Value::Builtin(builtins::sub));
-		env.def("*".to_string(), Value::Builtin(builtins::mul));
-		env.def("/".to_string(), Value::Builtin(builtins::div));
-		env.def("car".to_string(), Value::Builtin(builtins::car));
-		env.def("cdr".to_string(), Value::Builtin(builtins::cdr));
-		env.def("join".to_string(), Value::Builtin(builtins::join));
-		env.def("eval".to_string(), Value::Eval);
-		env.def("def".to_string(), Value::Def);
-		env.def("fun".to_string(), Value::Builtin(builtins::fun));
+		env.def(String::from("+"), Value::Builtin(builtins::add));
+		env.def(String::from("-"), Value::Builtin(builtins::sub));
+		env.def(String::from("*"), Value::Builtin(builtins::mul));
+		env.def(String::from("/"), Value::Builtin(builtins::div));
+		env.def(String::from("car"), Value::Builtin(builtins::car));
+		env.def(String::from("cdr"), Value::Builtin(builtins::cdr));
+		env.def(String::from("join"), Value::Builtin(builtins::join));
+		env.def(String::from("eval"), Value::Eval);
+		env.def(String::from("def"), Value::Def);
+		env.def(String::from("cond"), Value::Cond);
+		env.def(String::from("fun"), Value::Builtin(builtins::fun));
+		env.def(String::from("null?"), Value::Builtin(builtins::null_q));
+		env.def(String::from("atom?"), Value::Builtin(builtins::atom_q));
+		env.def(
+			String::from("#f"),
+			Value::Variable(Box::new(Expression::Atom(Atom::Bool(false)))),
+		);
+		env.def(
+			String::from("#t"),
+			Value::Variable(Box::new(Expression::Atom(Atom::Bool(true)))),
+		);
+		env.def(
+			String::from("else"),
+			Value::Variable(Box::new(Expression::Atom(Atom::Bool(true)))),
+		);
 
 		Evaluator { env }
 	}
@@ -110,6 +151,7 @@ impl Evaluator {
 				self.resolve_sexpression(evals.pop_front().unwrap().get_from_q_expression()?)
 			}
 			Value::Def => self.def(evals),
+			Value::Cond => self.cond(evals),
 			Value::Variable(_) => Err(LockjawRuntimeError::InvalidFunction(format!(
 				"Expected Function, got {}",
 				val

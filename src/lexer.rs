@@ -82,7 +82,7 @@ impl<'a> Lexer<'a> {
 			'a'..='z' => true,
 			'A'..='Z' => true,
 			// '0'..='9' => true, // Might turn on eventually, not yet.
-			'/' | '_' | '+' | '-' | '*' | '\\' | '=' | '>' | '<' | '!' | '&' => true,
+			'/' | '_' | '+' | '-' | '*' | '\\' | '=' | '>' | '<' | '!' | '&' | '?' | '#' => true,
 			_ => false,
 		}
 	}
@@ -124,7 +124,7 @@ impl<'a> Iterator for Lexer<'a> {
 					'{' => LexemeType::LeftCBracket,
 					'}' => LexemeType::RightCBracket,
 					'0'..='9' => self.lex_number(),
-					' ' | '\t' => continue,
+					' ' | '\t' | '\n' => continue,
 					x if Self::is_valid_raw_symbol(x) => self.lex_raw_symbol(),
 					_ => return Some(Err(LockjawParseError::InvalidLiteral { index })),
 				},
