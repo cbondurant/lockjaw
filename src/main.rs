@@ -244,4 +244,20 @@ mod tests {
 			Expression::Atom(Atom::Bool(true)),
 		)
 	}
+
+	#[test]
+	fn boolean_expressions_confirm() {
+		assert_program_output(vec!["and? #t #t"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["and? #t #f"], Expression::Atom(Atom::Bool(false)));
+		assert_program_output(vec!["and? #f #t"], Expression::Atom(Atom::Bool(false)));
+		assert_program_output(vec!["and? #f #f"], Expression::Atom(Atom::Bool(false)));
+		assert_program_output(vec!["or? #t #t"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["or? #t #f"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["or? #f #t"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["or? #f #f"], Expression::Atom(Atom::Bool(false)));
+		assert_program_output(vec!["xor? #t #t"], Expression::Atom(Atom::Bool(false)));
+		assert_program_output(vec!["xor? #t #f"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["xor? #f #t"], Expression::Atom(Atom::Bool(true)));
+		assert_program_output(vec!["xor? #f #f"], Expression::Atom(Atom::Bool(false)));
+	}
 }

@@ -186,9 +186,139 @@ pub fn atom_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRunti
 		)));
 	}
 
-	match args.pop_front() {
-		Some(Expression::Atom(_)) => Ok(Expression::Atom(Atom::Bool(true))),
-		Some(_) => Ok(Expression::Atom(Atom::Bool(false))),
-		None => unreachable!(),
+	match args.pop_front().unwrap() {
+		Expression::Atom(_) => Ok(Expression::Atom(Atom::Bool(true))),
+		_ => Ok(Expression::Atom(Atom::Bool(false))),
 	}
 }
+
+pub fn and_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"and? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap();
+	let b = args.pop_front().unwrap();
+
+	match (a, b) {
+		(Expression::Atom(Atom::Bool(a)), Expression::Atom(Atom::Bool(b))) => {
+			Ok(Expression::Atom(Atom::Bool(a & b)))
+		}
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to and? must be bool.",
+		))),
+	}
+}
+
+pub fn or_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"or? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap();
+	let b = args.pop_front().unwrap();
+
+	match (a, b) {
+		(Expression::Atom(Atom::Bool(a)), Expression::Atom(Atom::Bool(b))) => {
+			Ok(Expression::Atom(Atom::Bool(a | b)))
+		}
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to or? must be bool.",
+		))),
+	}
+}
+
+pub fn xor_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"xor? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap();
+	let b = args.pop_front().unwrap();
+
+	match (a, b) {
+		(Expression::Atom(Atom::Bool(a)), Expression::Atom(Atom::Bool(b))) => {
+			Ok(Expression::Atom(Atom::Bool(a ^ b)))
+		}
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to xor? must be bool.",
+		))),
+	}
+}
+
+pub fn gt_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"gt? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap().get_atom()?;
+	let b = args.pop_front().unwrap().get_atom()?;
+
+	match (a, b) {
+		(Atom::Number(a), Atom::Number(b)) => Ok(Expression::Atom(Atom::Bool(a > b))),
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to gt? must be numeric.",
+		))),
+	}
+}
+
+pub fn lt_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"lt? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap().get_atom()?;
+	let b = args.pop_front().unwrap().get_atom()?;
+
+	match (a, b) {
+		(Atom::Number(a), Atom::Number(b)) => Ok(Expression::Atom(Atom::Bool(a < b))),
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to lt? must be numeric.",
+		))),
+	}
+}
+
+pub fn eq_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 2 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"eq? takes exactly two arguments",
+		)));
+	}
+
+	let a = args.pop_front().unwrap().get_atom()?;
+	let b = args.pop_front().unwrap().get_atom()?;
+
+	match (a, b) {
+		(Atom::Number(a), Atom::Number(b)) => Ok(Expression::Atom(Atom::Bool(a == b))),
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to eq? must be numeric.",
+		))),
+	}
+}
+
+pub fn zero_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
+	if args.len() != 1 {
+		return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+			"xor? takes exactly one argument",
+		)));
+	}
+
+	match args.pop_front().unwrap().get_atom()? {
+		Atom::Number(a) => Ok(Expression::Atom(Atom::Bool(a == Numeric::Int(0)))),
+		_ => Err(LockjawRuntimeError::InvalidArguments(String::from(
+			"Arguments to gt? must be numeric.",
+		))),
+	}
+}
+
+// zero?

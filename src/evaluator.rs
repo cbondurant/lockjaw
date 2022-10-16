@@ -66,6 +66,13 @@ impl Evaluator {
 		env.def(String::from("fun"), Value::Builtin(builtins::fun));
 		env.def(String::from("null?"), Value::Builtin(builtins::null_q));
 		env.def(String::from("atom?"), Value::Builtin(builtins::atom_q));
+		env.def(String::from("and?"), Value::Builtin(builtins::and_q));
+		env.def(String::from("or?"), Value::Builtin(builtins::or_q));
+		env.def(String::from("xor?"), Value::Builtin(builtins::xor_q));
+		env.def(String::from("gt?"), Value::Builtin(builtins::gt_q));
+		env.def(String::from("lt?"), Value::Builtin(builtins::lt_q));
+		env.def(String::from("eq?"), Value::Builtin(builtins::eq_q));
+		env.def(String::from("zero?"), Value::Builtin(builtins::zero_q));
 		env.def(
 			String::from("#f"),
 			Value::Variable(Box::new(Expression::Atom(Atom::Bool(false)))),

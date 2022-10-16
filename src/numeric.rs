@@ -9,6 +9,17 @@ pub enum Numeric {
 	Int(i64),
 }
 
+impl PartialOrd for Numeric {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		match (self, other) {
+			(Numeric::Float(f1), Numeric::Float(f2)) => f1.partial_cmp(f2),
+			(Numeric::Float(f), Numeric::Int(i)) => (*i as f64).partial_cmp(f),
+			(Numeric::Int(i), Numeric::Float(f)) => f.partial_cmp(&(*i as f64)),
+			(Numeric::Int(i1), Numeric::Int(i2)) => i1.partial_cmp(i2),
+		}
+	}
+}
+
 impl Display for Numeric {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
