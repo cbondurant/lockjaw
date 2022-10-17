@@ -137,6 +137,12 @@ impl<'a> Iterator for Lexer<'a> {
 					')' => LexemeType::RightParen,
 					'{' => LexemeType::LeftCBracket,
 					'}' => LexemeType::RightCBracket,
+					';' => {
+						self.index += self.text[self.index..]
+							.find('\n')
+							.unwrap_or(self.text.len() - self.index);
+						continue;
+					}
 					'"' | '\'' => match self.lex_string_literal() {
 						Ok(val) => val,
 						Err(e) => return Some(Err(e)),
