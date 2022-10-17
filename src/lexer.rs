@@ -6,11 +6,10 @@ pub enum LexemeType<'a> {
 	LeftParen,
 	RightCBracket,
 	LeftCBracket,
-	SingleQuote,
-	DoubleQuote,
 	Integer(i64),
 	Float(f64),
 	RawSymbol(&'a str),
+	StringLiteral(&'a str),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +101,23 @@ impl<'a> Lexer<'a> {
 				}],
 		)
 	}
+
+	fn lex_string_literal(&mut self) -> Result<LexemeType<'a>, LockjawParseError> {
+		let symbol_start = self.index - 1;
+		let mut forward_iter = self.text[symbol_start..].chars().enumerate();
+		let (_, start_char) = forward_iter.next().unwrap();
+		while let Some((i, c)) = forward_iter.next() {
+			if c == '\\' {
+				forward_iter.next().unwrap();
+			} else if c == start_char {
+				self.index = symbol_start + i + 1;
+				return Ok(LexemeType::StringLiteral(
+					&self.text[symbol_start + 1..symbol_start + i],
+				));
+			}
+		}
+		Err(LockjawParseError::UnexpectedEof)
+	}
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -119,10 +135,12 @@ impl<'a> Iterator for Lexer<'a> {
 				value: match char {
 					'(' => LexemeType::LeftParen,
 					')' => LexemeType::RightParen,
-					'\'' => LexemeType::SingleQuote,
-					'"' => LexemeType::DoubleQuote,
 					'{' => LexemeType::LeftCBracket,
 					'}' => LexemeType::RightCBracket,
+					'"' | '\'' => match self.lex_string_literal() {
+						Ok(val) => val,
+						Err(e) => return Some(Err(e)),
+					},
 					'0'..='9' => self.lex_number(),
 					' ' | '\t' | '\n' => continue,
 					x if Self::is_valid_raw_symbol(x) => self.lex_raw_symbol(),

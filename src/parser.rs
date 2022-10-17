@@ -9,6 +9,8 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub enum LockjawParseError {
 	InvalidLiteral { index: usize },
+	InvalidStringLiteral { code: char },
+	UnexpectedEof,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,6 +30,28 @@ impl Parser {
 			}
 			Expression::Atom(_) => 1,
 		}
+	}
+
+	pub fn parse_string_literal(s: &str) -> Result<String, LockjawParseError> {
+		let mut iter = s.chars();
+		let mut escaped = String::with_capacity(s.len());
+		while let Some(c) = iter.next() {
+			escaped.push(match c {
+				'\\' => match iter.next() {
+					Some(escape) => match escape {
+						't' => '\t',
+						'n' => '\n',
+						'r' => '\r',
+						'0' => '\0',
+						'\\' => '\\',
+						_ => return Err(LockjawParseError::InvalidStringLiteral { code: c }),
+					},
+					None => return Err(LockjawParseError::UnexpectedEof),
+				},
+				_ => c,
+			})
+		}
+		Ok(escaped)
 	}
 
 	pub fn parse(lexemes: &[Lexeme]) -> Result<Expression, LockjawParseError> {
@@ -59,6 +83,7 @@ impl Parser {
 			term => Ok(Expression::Atom(match term {
 				LexemeType::Integer(value) => Atom::Number(Numeric::Int(value)),
 				LexemeType::Float(value) => Atom::Number(Numeric::Float(value)),
+				LexemeType::StringLiteral(str) => Atom::String(Self::parse_string_literal(str)?),
 				LexemeType::RawSymbol(symb) => Atom::Symbol(symb.to_string()),
 				_ => {
 					return Err(LockjawParseError::InvalidLiteral {

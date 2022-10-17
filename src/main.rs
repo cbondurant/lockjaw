@@ -44,6 +44,12 @@ fn main() {
 								parser::LockjawParseError::InvalidLiteral { index } => {
 									println!("{}^", " ".to_string().repeat(index))
 								}
+								parser::LockjawParseError::UnexpectedEof => {
+									println!("Unexpected EOF!")
+								}
+								parser::LockjawParseError::InvalidStringLiteral { code } => {
+									println!("Invalid escape code: {}", code)
+								}
 							}
 						}
 					},

@@ -48,6 +48,7 @@ pub enum Atom {
 	Number(Numeric),
 	Symbol(String),
 	Value(Value),
+	String(String),
 	Bool(bool),
 }
 
@@ -83,6 +84,7 @@ impl Display for Atom {
 			Atom::Symbol(v) => write!(f, "Symbol: {}", v),
 			Atom::Value(v) => write!(f, "{}", v),
 			Atom::Bool(v) => write!(f, "{}", v),
+			Atom::String(v) => write!(f, "{}", v),
 		}
 	}
 }
