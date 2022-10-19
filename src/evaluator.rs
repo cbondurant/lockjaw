@@ -114,7 +114,7 @@ impl Evaluator {
 				Ok(value)
 			}
 			std::cmp::Ordering::Greater => {
-				let mut curriedfunc = func.clone();
+				let mut curriedfunc = func;
 				curriedfunc.curried.extend(args);
 				Ok(Expression::Atom(Atom::Value(Value::UserDef(curriedfunc))))
 			}

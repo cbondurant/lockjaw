@@ -27,7 +27,7 @@ impl Environment {
 		// Can be used to import the immediate environment
 		self.internal[self.internal.len() - 1]
 			.get(k.as_str())
-			.or(self.internal[0].get(k.as_str()))
+			.or_else(|| self.internal[0].get(k.as_str()))
 	}
 
 	pub fn push_env(&mut self) {
