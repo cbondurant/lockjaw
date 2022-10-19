@@ -104,7 +104,7 @@ impl<'a> Lexer<'a> {
 
 	fn lex_string_literal(&mut self) -> Result<LexemeType<'a>, LockjawParseError> {
 		let symbol_start = self.index - 1;
-		let mut forward_iter = self.text[symbol_start..].chars().enumerate();
+		let mut forward_iter = self.text[symbol_start..].char_indices();
 		let (_, start_char) = forward_iter.next().unwrap();
 		while let Some((i, c)) = forward_iter.next() {
 			if c == '\\' {

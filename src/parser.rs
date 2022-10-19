@@ -1,3 +1,4 @@
+use crate::lexer;
 use std::collections::VecDeque;
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 	types::*,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockjawParseError {
 	InvalidLiteral { index: usize },
 	InvalidStringLiteral { code: char },
@@ -44,7 +45,9 @@ impl Parser {
 						'r' => '\r',
 						'0' => '\0',
 						'\\' => '\\',
-						_ => return Err(LockjawParseError::InvalidStringLiteral { code: c }),
+						'"' => '"',
+						'\'' => '\'',
+						_ => return Err(LockjawParseError::InvalidStringLiteral { code: escape }),
 					},
 					None => return Err(LockjawParseError::UnexpectedEof),
 				},
@@ -52,6 +55,11 @@ impl Parser {
 			})
 		}
 		Ok(escaped)
+	}
+
+	pub fn parse_from_text(s: &str) -> Result<Expression, LockjawParseError> {
+		let lexemes: Result<Vec<lexer::Lexeme>, LockjawParseError> = lexer::Lexer::new(s).collect();
+		Self::parse(lexemes?.as_slice())
 	}
 
 	pub fn parse(lexemes: &[Lexeme]) -> Result<Expression, LockjawParseError> {

@@ -1,14 +1,29 @@
 use crate::numeric::Numeric;
+use crate::parser::LockjawParseError;
 use std::collections::VecDeque;
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum LockjawRuntimeError {
 	InvalidArguments(String),
 	InvalidArgumentCount(String),
 	InvalidFunction(String),
+	ParserError(LockjawParseError),
+	FileError(std::io::Error),
 	CondFailure,
 	UnboundExpression,
+}
+
+impl From<LockjawParseError> for LockjawRuntimeError {
+	fn from(t: LockjawParseError) -> Self {
+		LockjawRuntimeError::ParserError(t)
+	}
+}
+
+impl From<std::io::Error> for LockjawRuntimeError {
+	fn from(t: std::io::Error) -> Self {
+		LockjawRuntimeError::FileError(t)
+	}
 }
 
 type BuiltinFunction = fn(VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError>;
@@ -28,6 +43,7 @@ pub enum Value {
 	Eval,
 	Def,
 	Cond,
+	Load,
 	Variable(Box<Expression>),
 }
 
@@ -35,7 +51,7 @@ impl Display for Value {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Value::Variable(e) => write!(f, "{}", *e),
-			Value::Eval | Value::Def | Value::Cond | Value::Builtin(_) => {
+			Value::Eval | Value::Def | Value::Load | Value::Cond | Value::Builtin(_) => {
 				write!(f, "<BUILTIN_FUNC>")
 			}
 			Value::UserDef(_) => write!(f, "<USER FUNC>"),

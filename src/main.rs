@@ -266,4 +266,14 @@ mod tests {
 		assert_program_output(vec!["xor? #f #t"], Expression::Atom(Atom::Bool(true)));
 		assert_program_output(vec!["xor? #f #f"], Expression::Atom(Atom::Bool(false)));
 	}
+
+	#[test]
+	fn weird_string_literals_pass() {
+		assert_program_output(
+			vec!["\"!@#$%^&*()_+<>,.;':\\\"\\n\\t\\r`~😇👩👩👧👦🌓🌑🏳️⚧️\""],
+			Expression::Atom(Atom::String(String::from(
+				"!@#$%^&*()_+<>,.;':\"\n\t\r`~😇👩👩👧👦🌓🌑🏳️⚧️",
+			))),
+		)
+	}
 }

@@ -1,7 +1,11 @@
 use crate::builtins;
 use crate::environment::Environment;
+use crate::parser;
 use crate::types::*;
 use std::collections::VecDeque;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
 pub struct Evaluator {
 	env: Environment,
@@ -51,6 +55,28 @@ impl Evaluator {
 		Err(LockjawRuntimeError::CondFailure)
 	}
 
+	pub fn load(
+		&mut self,
+		mut args: VecDeque<Expression>,
+	) -> Result<Expression, LockjawRuntimeError> {
+		if args.len() != 1 {
+			return Err(LockjawRuntimeError::InvalidArgumentCount(String::from(
+				"load takes a single file name as input.",
+			)));
+		}
+
+		if let Expression::Atom(Atom::String(path)) = args.pop_front().unwrap() {
+			let path = Path::new(path.as_str());
+			let mut f = File::open(path)?;
+			let mut s = String::new();
+
+			f.read_to_string(&mut s)?;
+			let expression = parser::Parser::parse_from_text(s.as_str())?;
+			self.evaluate(expression)?;
+		}
+		Ok(Expression::SExpression(VecDeque::new()))
+	}
+
 	pub fn new() -> Self {
 		let mut env: Environment = Environment::new();
 		env.def(String::from("+"), Value::Builtin(builtins::add));
@@ -60,9 +86,12 @@ impl Evaluator {
 		env.def(String::from("car"), Value::Builtin(builtins::car));
 		env.def(String::from("cdr"), Value::Builtin(builtins::cdr));
 		env.def(String::from("join"), Value::Builtin(builtins::join));
+
+		// These are special functions that depend on mutating self, and need to be treated special as such.
 		env.def(String::from("eval"), Value::Eval);
 		env.def(String::from("def"), Value::Def);
 		env.def(String::from("cond"), Value::Cond);
+		env.def(String::from("load"), Value::Load);
 		env.def(String::from("fun"), Value::Builtin(builtins::fun));
 		env.def(String::from("null?"), Value::Builtin(builtins::null_q));
 		env.def(String::from("atom?"), Value::Builtin(builtins::atom_q));
@@ -159,6 +188,7 @@ impl Evaluator {
 			}
 			Value::Def => self.def(evals),
 			Value::Cond => self.cond(evals),
+			Value::Load => self.load(evals),
 			Value::Variable(_) => Err(LockjawRuntimeError::InvalidFunction(format!(
 				"Expected Function, got {}",
 				val
