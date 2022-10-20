@@ -110,6 +110,7 @@ pub enum Expression {
 	Atom(Atom),
 	SExpression(VecDeque<Expression>),
 	QExpression(VecDeque<Expression>),
+	Null,
 }
 
 impl Display for Expression {
@@ -129,6 +130,9 @@ impl Display for Expression {
 					write!(f, "{} ", expr)?;
 				}
 				write!(f, "}}")
+			}
+			Expression::Null => {
+				write!(f, "()")
 			}
 		}
 	}

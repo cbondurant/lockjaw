@@ -30,6 +30,7 @@ impl Parser {
 				2 + exprlist.iter().map(Self::lexeme_len).sum::<usize>()
 			}
 			Expression::Atom(_) => 1,
+			Expression::Null => 2,
 		}
 	}
 

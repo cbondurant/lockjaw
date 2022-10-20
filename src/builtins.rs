@@ -171,6 +171,7 @@ pub fn null_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRunti
 	}
 
 	match args.pop_front() {
+		Some(Expression::Null) => Ok(Expression::Atom(Atom::Bool(true))),
 		Some(Expression::QExpression(v)) | Some(Expression::SExpression(v)) => {
 			Ok(Expression::Atom(Atom::Bool(v.is_empty())))
 		}

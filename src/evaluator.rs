@@ -25,7 +25,7 @@ impl Evaluator {
 						.def(phrase.to_string(), Value::Variable(Box::new(value.clone())));
 				}
 			}
-			Ok(Expression::SExpression(VecDeque::new()))
+			Ok(Expression::Null)
 		}
 	}
 
@@ -74,7 +74,7 @@ impl Evaluator {
 			let expression = parser::Parser::parse_from_text(s.as_str())?;
 			self.evaluate(expression)?;
 		}
-		Ok(Expression::SExpression(VecDeque::new()))
+		Ok(Expression::Null)
 	}
 
 	pub fn new() -> Self {
@@ -158,7 +158,7 @@ impl Evaluator {
 		mut expressions: VecDeque<Expression>,
 	) -> Result<Expression, LockjawRuntimeError> {
 		if expressions.is_empty() {
-			return Ok(Expression::SExpression(expressions));
+			return Ok(Expression::Null);
 		}
 
 		// Must check for Quote before any evaluation is done
