@@ -28,7 +28,6 @@ fn main() {
 	let mut environment = evaluator::Evaluator::new();
 	if let Some(run_program) = cli.file.as_deref() {
 		let program = format!("load \"{}\"", run_program.display());
-		println!("{}", program);
 		let lexemes: Result<Vec<lexer::Lexeme>, parser::LockjawParseError> =
 			lexer::Lexer::new(program.as_str()).collect();
 		match lexemes {

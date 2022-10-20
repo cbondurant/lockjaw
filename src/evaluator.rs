@@ -72,7 +72,6 @@ impl Evaluator {
 
 			f.read_to_string(&mut s)?;
 			let expression = parser::Parser::parse_from_text(s.as_str())?;
-			println!("{:#?}", expression);
 			match expression {
 				Expression::SExpression(statements) => {
 					for e in statements {
