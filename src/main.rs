@@ -7,12 +7,57 @@ mod numeric;
 mod parser;
 mod types;
 
+use std::path::PathBuf;
+
+use clap::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
+#[derive(clap::Parser)]
+#[command(name = "lockjaw")]
+#[command(author = "Conner Bondurant")]
+struct Cli {
+	file: Option<PathBuf>,
+	#[arg(short, long)]
+	load_to_interpreter: bool,
+}
+
 fn main() {
-	println!("Lockjaw Version 0.1.1");
-	println!("Press Ctrl+c to Exit");
+	let cli = Cli::parse();
+
+	let mut environment = evaluator::Evaluator::new();
+	if let Some(run_program) = cli.file.as_deref() {
+		let program = format!("load \"{}\"", run_program.display());
+		println!("{}", program);
+		let lexemes: Result<Vec<lexer::Lexeme>, parser::LockjawParseError> =
+			lexer::Lexer::new(program.as_str()).collect();
+		match lexemes {
+			Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
+				Ok(lj) => {
+					//println!("{:#?}", lj);
+					println!("{:?}", environment.evaluate(lj));
+				}
+				Err(parser_err) => {
+					println!("{parser_err:?}");
+					match parser_err {
+						parser::LockjawParseError::InvalidLiteral { index } => {
+							println!("{}^", " ".to_string().repeat(index))
+						}
+						parser::LockjawParseError::UnexpectedEof => {
+							println!("Unexpected EOF!")
+						}
+						parser::LockjawParseError::InvalidStringLiteral { code } => {
+							println!("Invalid escape code: {}", code)
+						}
+					}
+				}
+			},
+			Err(why) => println!("{why:?}"),
+		}
+		if !cli.load_to_interpreter {
+			return;
+		}
+	}
 
 	let mut rl = match Editor::<()>::new() {
 		Ok(rl) => rl,
@@ -21,8 +66,6 @@ fn main() {
 			return;
 		}
 	};
-
-	let mut environment = evaluator::Evaluator::new();
 
 	loop {
 		let readline = rl.readline("lj> ");

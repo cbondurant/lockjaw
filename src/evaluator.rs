@@ -72,9 +72,21 @@ impl Evaluator {
 
 			f.read_to_string(&mut s)?;
 			let expression = parser::Parser::parse_from_text(s.as_str())?;
-			self.evaluate(expression)?;
+			println!("{:#?}", expression);
+			match expression {
+				Expression::SExpression(statements) => {
+					for e in statements {
+						self.evaluate(e)?;
+					}
+					Ok(Expression::Null)
+				}
+				Expression::Atom(_) => Ok(expression),
+				Expression::QExpression(_) => Ok(expression),
+				Expression::Null => Ok(expression),
+			}
+		} else {
+			Ok(Expression::Null)
 		}
-		Ok(Expression::Null)
 	}
 
 	pub fn new() -> Self {
