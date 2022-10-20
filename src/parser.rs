@@ -60,7 +60,7 @@ impl Parser {
 
 	pub fn parse_from_text(s: &str) -> Result<Expression, LockjawParseError> {
 		let lexemes: Result<Vec<lexer::Lexeme>, LockjawParseError> = lexer::Lexer::new(s).collect();
-		Self::parse(lexemes?.as_slice())
+		Self::parse_root(lexemes?.as_slice())
 	}
 
 	pub fn parse(lexemes: &[Lexeme]) -> Result<Expression, LockjawParseError> {
