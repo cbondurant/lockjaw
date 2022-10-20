@@ -322,6 +322,7 @@ pub fn zero_q(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRunti
 	}
 }
 
+#[allow(unused_mut)]
 pub fn print(mut args: VecDeque<Expression>) -> Result<Expression, LockjawRuntimeError> {
 	println!("{:?}", args);
 	Ok(Expression::Null)
