@@ -49,16 +49,15 @@ impl<'a> Lexer<'a> {
 		{
 			if nextchar == '.' {
 				if let Some((float_end, _)) = self.text[numstart + num_split + 1..]
-					.chars()
-					.enumerate()
+					.char_indices()
 					.find(|(_, x)| !x.is_ascii_digit())
 				{
 					if float_end == 0 {
 						panic!("Invalid Literal!");
 					}
-					self.index += num_split + float_end;
+					self.index += num_split + float_end + 1;
 					LexemeType::Float(
-						self.text[numstart..numstart + num_split + float_end]
+						self.text[numstart..numstart + num_split + float_end + 1]
 							.parse()
 							.unwrap(),
 					)
