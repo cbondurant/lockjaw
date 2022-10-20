@@ -103,6 +103,7 @@ impl Evaluator {
 		env.def(String::from("def"), Value::Def);
 		env.def(String::from("cond"), Value::Cond);
 		env.def(String::from("load"), Value::Load);
+		env.def(String::from("print"), Value::Builtin(builtins::print));
 		env.def(String::from("fun"), Value::Builtin(builtins::fun));
 		env.def(String::from("null?"), Value::Builtin(builtins::null_q));
 		env.def(String::from("atom?"), Value::Builtin(builtins::atom_q));

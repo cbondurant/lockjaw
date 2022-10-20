@@ -33,8 +33,7 @@ fn main() {
 		match lexemes {
 			Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
 				Ok(lj) => {
-					//println!("{:#?}", lj);
-					println!("{:?}", environment.evaluate(lj));
+					environment.evaluate(lj);
 				}
 				Err(parser_err) => {
 					println!("{parser_err:?}");
