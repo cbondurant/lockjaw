@@ -1,5 +1,5 @@
 use crate::numeric::Numeric;
-use crate::parser::LockjawParseError;
+use crate::parser::ParsingError;
 use std::collections::VecDeque;
 use std::fmt::Display;
 
@@ -8,14 +8,14 @@ pub enum LockjawRuntimeError {
 	InvalidArguments(String),
 	InvalidArgumentCount(String),
 	InvalidFunction(String),
-	ParserError(LockjawParseError),
+	ParserError(ParsingError),
 	FileError(std::io::Error),
 	CondFailure,
 	UnboundExpression,
 }
 
-impl From<LockjawParseError> for LockjawRuntimeError {
-	fn from(t: LockjawParseError) -> Self {
+impl From<ParsingError> for LockjawRuntimeError {
+	fn from(t: ParsingError) -> Self {
 		LockjawRuntimeError::ParserError(t)
 	}
 }

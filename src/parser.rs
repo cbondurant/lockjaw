@@ -1,5 +1,11 @@
-use crate::lexer;
-use std::collections::VecDeque;
+use crate::lexer::{self, LexingError};
+use std::{
+	collections::VecDeque,
+	error::Error,
+	fmt::Display,
+	num::{ParseFloatError, ParseIntError},
+	str::FromStr,
+};
 
 use crate::{
 	lexer::{Lexeme, LexemeType},
@@ -7,11 +13,59 @@ use crate::{
 	types::*,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LockjawParseError {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParsingError {
 	InvalidLiteral { index: usize },
 	InvalidStringLiteral { code: char },
+	LexingError(LexingError),
+	IntParseFailure(<i64 as FromStr>::Err),
+	FloatParseFailure(<f64 as FromStr>::Err),
 	UnexpectedEof,
+}
+
+impl Display for ParsingError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ParsingError::InvalidLiteral { index } => write!(f, "invalid literal at index {index}"),
+			ParsingError::InvalidStringLiteral { code } => {
+				write!(f, "invalid character in string literal: {code}")
+			}
+			ParsingError::LexingError(_) => write!(f, "failure at lexing stage"),
+			ParsingError::UnexpectedEof => {
+				write!(f, "reached end of file before end of string literal")
+			}
+			ParsingError::IntParseFailure(_) => write!(f, "failed to parse integer literal"),
+			ParsingError::FloatParseFailure(_) => write!(f, "failed to parse float literal"),
+		}
+	}
+}
+
+impl From<ParseFloatError> for ParsingError {
+	fn from(e: <f64 as FromStr>::Err) -> Self {
+		Self::FloatParseFailure(e)
+	}
+}
+
+impl From<ParseIntError> for ParsingError {
+	fn from(e: <i64 as FromStr>::Err) -> Self {
+		Self::IntParseFailure(e)
+	}
+}
+
+impl From<LexingError> for ParsingError {
+	fn from(e: LexingError) -> Self {
+		Self::LexingError(e)
+	}
+}
+
+impl Error for ParsingError {
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		if let ParsingError::LexingError(lex_error) = self {
+			Some(lex_error)
+		} else {
+			None
+		}
+	}
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -34,7 +88,7 @@ impl Parser {
 		}
 	}
 
-	pub fn parse_string_literal(s: &str) -> Result<String, LockjawParseError> {
+	pub fn parse_string_literal(s: &str) -> Result<String, ParsingError> {
 		let mut iter = s.chars();
 		let mut escaped = String::with_capacity(s.len());
 		while let Some(c) = iter.next() {
@@ -48,9 +102,9 @@ impl Parser {
 						'\\' => '\\',
 						'"' => '"',
 						'\'' => '\'',
-						_ => return Err(LockjawParseError::InvalidStringLiteral { code: escape }),
+						_ => return Err(ParsingError::InvalidStringLiteral { code: escape }),
 					},
-					None => return Err(LockjawParseError::UnexpectedEof),
+					None => return Err(ParsingError::UnexpectedEof),
 				},
 				_ => c,
 			})
@@ -58,12 +112,12 @@ impl Parser {
 		Ok(escaped)
 	}
 
-	pub fn parse_from_text(s: &str) -> Result<Expression, LockjawParseError> {
-		let lexemes: Result<Vec<lexer::Lexeme>, LockjawParseError> = lexer::Lexer::new(s).collect();
+	pub fn parse_from_text(s: &str) -> Result<Expression, ParsingError> {
+		let lexemes: Result<Vec<lexer::Lexeme>, LexingError> = lexer::Lexer::new(s).collect();
 		Self::parse_root(lexemes?.as_slice())
 	}
 
-	pub fn parse(lexemes: &[Lexeme]) -> Result<Expression, LockjawParseError> {
+	pub fn parse(lexemes: &[Lexeme]) -> Result<Expression, ParsingError> {
 		match lexemes[0].value {
 			LexemeType::LeftParen => {
 				let mut exprlist = VecDeque::new();
@@ -90,12 +144,12 @@ impl Parser {
 				Ok(Expression::QExpression(exprlist))
 			}
 			term => Ok(Expression::Atom(match term {
-				LexemeType::Integer(value) => Atom::Number(Numeric::Int(value)),
-				LexemeType::Float(value) => Atom::Number(Numeric::Float(value)),
+				LexemeType::Integer(value) => Atom::Number(Numeric::Int(value.parse()?)),
+				LexemeType::Float(value) => Atom::Number(Numeric::Float(value.parse()?)),
 				LexemeType::StringLiteral(str) => Atom::String(Self::parse_string_literal(str)?),
 				LexemeType::RawSymbol(symb) => Atom::Symbol(symb.to_string()),
 				_ => {
-					return Err(LockjawParseError::InvalidLiteral {
+					return Err(ParsingError::InvalidLiteral {
 						index: lexemes[0].index,
 					})
 				}
@@ -103,7 +157,7 @@ impl Parser {
 		}
 	}
 
-	pub fn parse_root(lexemes: &[Lexeme]) -> Result<Expression, LockjawParseError> {
+	pub fn parse_root(lexemes: &[Lexeme]) -> Result<Expression, ParsingError> {
 		let mut expressions = VecDeque::new();
 		let mut lexemes_consumed = 0;
 		while lexemes_consumed < lexemes.len() {

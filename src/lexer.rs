@@ -1,4 +1,35 @@
-use crate::parser::LockjawParseError;
+use std::{error::Error, fmt::Display};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LexingErrorKind {
+	InvalidLiteral { expected: String, got: String },
+	UnexpectedEof,
+}
+
+impl Display for LexingErrorKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			LexingErrorKind::InvalidLiteral { expected, got } => {
+				write!(f, "expected `{expected}`, got `{got}`")
+			}
+			LexingErrorKind::UnexpectedEof => write!(f, "unexpected end of file"),
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LexingError {
+	position: usize,
+	kind: LexingErrorKind,
+}
+
+impl Display for LexingError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Error at position {}: {}", self.position, self.kind)
+	}
+}
+
+impl Error for LexingError {}
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LexemeType<'a> {
@@ -6,8 +37,10 @@ pub enum LexemeType<'a> {
 	LeftParen,
 	RightCBracket,
 	LeftCBracket,
-	Integer(i64),
-	Float(f64),
+	// For better seperation of responsibility, we only grab the string rep
+	// Parsing them into integers and floats is for the parser.
+	Integer(&'a str),
+	Float(&'a str),
 	RawSymbol(&'a str),
 	StringLiteral(&'a str),
 }
@@ -40,7 +73,7 @@ impl<'a> Lexer<'a> {
 		self.text[self.index - 1..].chars().next()
 	}
 
-	fn lex_number(&mut self) -> LexemeType<'a> {
+	fn lex_number(&mut self) -> Result<LexemeType<'a>, LexingError> {
 		let numstart = self.index - 1;
 		if let Some((num_split, nextchar)) = self.text[numstart..]
 			.chars()
@@ -52,26 +85,23 @@ impl<'a> Lexer<'a> {
 					.char_indices()
 					.find(|(_, x)| !x.is_ascii_digit())
 				{
-					if float_end == 0 {
-						panic!("Invalid Literal!");
-					}
 					self.index += num_split + float_end + 1;
-					LexemeType::Float(
-						self.text[numstart..numstart + num_split + float_end + 1]
-							.parse()
-							.unwrap(),
-					)
+					Ok(LexemeType::Float(
+						&self.text[numstart..numstart + num_split + float_end + 1],
+					))
 				} else {
 					self.index = self.text.len();
-					LexemeType::Float(self.text[numstart..].parse().unwrap())
+					Ok(LexemeType::Float(&self.text[numstart..]))
 				}
 			} else {
 				self.index = numstart + num_split;
-				LexemeType::Integer(self.text[numstart..numstart + num_split].parse().unwrap())
+				Ok(LexemeType::Integer(
+					&self.text[numstart..numstart + num_split],
+				))
 			}
 		} else {
 			self.index = self.text.len();
-			LexemeType::Integer(self.text[numstart..].parse().unwrap())
+			Ok(LexemeType::Integer(&self.text[numstart..]))
 		}
 	}
 
@@ -101,7 +131,7 @@ impl<'a> Lexer<'a> {
 		)
 	}
 
-	fn lex_string_literal(&mut self) -> Result<LexemeType<'a>, LockjawParseError> {
+	fn lex_string_literal(&mut self) -> Result<LexemeType<'a>, LexingError> {
 		let symbol_start = self.index - 1;
 		let mut forward_iter = self.text[symbol_start..].char_indices();
 		let (_, start_char) = forward_iter.next().unwrap();
@@ -115,12 +145,15 @@ impl<'a> Lexer<'a> {
 				));
 			}
 		}
-		Err(LockjawParseError::UnexpectedEof)
+		Err(LexingError {
+			position: self.index,
+			kind: LexingErrorKind::UnexpectedEof,
+		})
 	}
 }
 
 impl<'a> Iterator for Lexer<'a> {
-	type Item = Result<Lexeme<'a>, LockjawParseError>;
+	type Item = Result<Lexeme<'a>, LexingError>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.has_errored {
@@ -146,10 +179,23 @@ impl<'a> Iterator for Lexer<'a> {
 						Ok(val) => val,
 						Err(e) => return Some(Err(e)),
 					},
-					'0'..='9' => self.lex_number(),
+					'0'..='9' => match self.lex_number() {
+						Ok(val) => val,
+						Err(e) => return Some(Err(e)),
+					},
 					' ' | '\t' | '\n' => continue,
 					x if Self::is_valid_raw_symbol(x) => self.lex_raw_symbol(),
-					_ => return Some(Err(LockjawParseError::InvalidLiteral { index })),
+					invalid => {
+						return Some(Err(LexingError {
+							position: index,
+							kind: LexingErrorKind::InvalidLiteral {
+								expected: String::from(
+									"one of '(', ')', '{', '}', ';' '\"', '\'', ",
+								),
+								got: invalid.to_string(),
+							},
+						}))
+					}
 				},
 			}));
 			return resp;

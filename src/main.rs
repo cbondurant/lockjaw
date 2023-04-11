@@ -7,9 +7,11 @@ mod numeric;
 mod parser;
 mod types;
 
+use std::error::Error;
 use std::path::PathBuf;
 
 use clap::Parser;
+use lexer::LexingError;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -28,7 +30,7 @@ fn main() {
 	let mut environment = evaluator::Evaluator::new();
 	if let Some(run_program) = cli.file.as_deref() {
 		let program = format!("load \"{}\"", run_program.display());
-		let lexemes: Result<Vec<lexer::Lexeme>, parser::LockjawParseError> =
+		let lexemes: Result<Vec<lexer::Lexeme>, lexer::LexingError> =
 			lexer::Lexer::new(program.as_str()).collect();
 		match lexemes {
 			Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
@@ -36,18 +38,7 @@ fn main() {
 					environment.evaluate(lj).unwrap();
 				}
 				Err(parser_err) => {
-					println!("{parser_err:?}");
-					match parser_err {
-						parser::LockjawParseError::InvalidLiteral { index } => {
-							println!("{}^", " ".to_string().repeat(index))
-						}
-						parser::LockjawParseError::UnexpectedEof => {
-							println!("Unexpected EOF!")
-						}
-						parser::LockjawParseError::InvalidStringLiteral { code } => {
-							println!("Invalid escape code: {}", code)
-						}
-					}
+					println!("{parser_err:?}: {:?}", parser_err.source());
 				}
 			},
 			Err(why) => println!("{why:?}"),
@@ -70,7 +61,7 @@ fn main() {
 		match readline {
 			Ok(line) => {
 				rl.add_history_entry(line.as_str());
-				let lexemes: Result<Vec<lexer::Lexeme>, parser::LockjawParseError> =
+				let lexemes: Result<Vec<lexer::Lexeme>, LexingError> =
 					lexer::Lexer::new(&line).collect();
 				match lexemes {
 					Ok(lexemes) => match parser::Parser::parse_root(lexemes.as_slice()) {
@@ -81,17 +72,6 @@ fn main() {
 						Err(parser_err) => {
 							println!("{parser_err:?}");
 							println!("{line}");
-							match parser_err {
-								parser::LockjawParseError::InvalidLiteral { index } => {
-									println!("{}^", " ".to_string().repeat(index))
-								}
-								parser::LockjawParseError::UnexpectedEof => {
-									println!("Unexpected EOF!")
-								}
-								parser::LockjawParseError::InvalidStringLiteral { code } => {
-									println!("Invalid escape code: {}", code)
-								}
-							}
 						}
 					},
 					Err(why) => println!("{why:?}"),
@@ -120,6 +100,7 @@ mod tests {
 
 	use crate::evaluator;
 	use crate::lexer;
+	use crate::lexer::LexingError;
 	use crate::numeric::Numeric;
 	use crate::parser;
 	use crate::types::*;
@@ -129,7 +110,7 @@ mod tests {
 		let mut result: Expression = Expression::SExpression(VecDeque::new());
 		for command in commands {
 			let lexemes: Vec<lexer::Lexeme> = lexer::Lexer::new(&command)
-				.collect::<Result<Vec<lexer::Lexeme>, parser::LockjawParseError>>()
+				.collect::<Result<Vec<lexer::Lexeme>, LexingError>>()
 				.unwrap();
 			let parse = parser::Parser::parse_root(lexemes.as_slice()).unwrap();
 			result = environment.evaluate(parse).unwrap();
